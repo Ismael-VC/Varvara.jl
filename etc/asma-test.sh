@@ -6,7 +6,7 @@ mkdir asma-test
 
 expect_failure() {
 	cat > asma-test/in.tal
-	echo asma-test/in.tal | bin/uxncli asma-test/asma.rom > asma-test/out.rom 2> asma-test/asma.log
+	bin/uxncli asma-test/asma.rom asma-test/in.tal asma-test/out.rom 2> asma-test/asma.log
 	if ! grep -qF "${1}" asma-test/asma.log; then
 		echo "error: asma didn't report error ${1} in faulty code"
 		cat asma-test/asma.log
@@ -27,7 +27,7 @@ for F in $(find projects -path projects/library -prune -false -or -type f -name 
 	xxd "${UASM_BASE}.rom" > "${UASM_BASE}.hex"
 
 	ASMA_BASE="asma-test/asma-$(basename "${F%.tal}")"
-	echo "${F}" | bin/uxncli asma-test/asma.rom > "${ASMA_BASE}.rom" 2> "${ASMA_BASE}.log"
+	bin/uxncli asma-test/asma.rom "${F}" "${ASMA_BASE}.rom" 2> "${ASMA_BASE}.log"
 	if ! grep -qF 'bytes of heap used' "${ASMA_BASE}.log"; then
 		echo "error: asma failed to assemble ${F}, while uxnasm succeeded"
 		cat "${ASMA_BASE}.log"

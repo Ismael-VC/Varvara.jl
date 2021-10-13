@@ -31,7 +31,12 @@
 	DUP EOR ( 00 )
 	;append-heap-byte JSR2 ( )
 
-	;asma-heap #0000 ;asma-assemble-file JSR2
+	,&output-file LDR2 EOR ,&run JCN
+	;heap LDA2 ,&output-file STR2
+	BRK
+
+	&run
+	;asma-heap LIT2 &output-file $2 ;asma-assemble-file JSR2
 	#01 .System/halt DEO
 	BRK
 

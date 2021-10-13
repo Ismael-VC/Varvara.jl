@@ -65,7 +65,7 @@ echo "Assembling(asma).."
 ./bin/uxnasm projects/software/asma.tal bin/asma.rom
 
 echo "Assembling(piano).."
-echo projects/examples/demos/piano.tal | bin/uxncli bin/asma.rom > bin/piano.rom 2> bin/piano.log
+bin/uxncli bin/asma.rom projects/examples/demos/piano.tal bin/piano.rom 2> bin/piano.log
 
 echo "Running.."
 ./bin/uxnemu bin/piano.rom
