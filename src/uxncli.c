@@ -69,6 +69,8 @@ system_talk(Device *d, Uint8 b0, Uint8 w)
 static int
 console_talk(Device *d, Uint8 b0, Uint8 w)
 {
+	if(b0 == 0x1)
+		d->vector = peek16(d->dat, 0x0);
 	if(w && b0 > 0x7)
 		write(b0 - 0x7, (char *)&d->dat[b0], 1);
 	return 1;
@@ -134,11 +136,17 @@ uxn_halt(Uxn *u, Uint8 error, char *name, int id)
 	return 0;
 }
 
+static int
+console_input(Uxn *u, char c)
+{
+	devconsole->dat[0x2] = c;
+	return uxn_eval(u, devconsole->vector);
+}
+
 static void
 run(Uxn *u)
 {
-	Uint16 vec = PAGE_PROGRAM;
-	uxn_eval(u, vec);
+	Uint16 vec;
 	while((!u->dev[0].dat[0xf]) && (read(0, &devconsole->dat[0x2], 1) > 0)) {
 		vec = peek16(devconsole->dat, 0);
 		if(!vec) vec = u->ram.ptr; /* continue after last BRK */
@@ -161,13 +169,10 @@ int
 main(int argc, char **argv)
 {
 	Uxn u;
+	int i, loaded = 0;
 
-	if(argc < 2)
-		return error("Input", "Missing");
 	if(!uxn_boot(&u))
 		return error("Boot", "Failed");
-	if(!load(&u, argv[1]))
-		return error("Load", "Failed");
 
 	/* system   */ devsystem = uxn_port(&u, 0x0, system_talk);
 	/* console  */ devconsole = uxn_port(&u, 0x1, console_talk);
@@ -185,6 +190,21 @@ main(int argc, char **argv)
 	/* empty    */ uxn_port(&u, 0xd, nil_talk);
 	/* empty    */ uxn_port(&u, 0xe, nil_talk);
 	/* empty    */ uxn_port(&u, 0xf, nil_talk);
+
+	for(i = 1; i < argc; ++i) {
+		if(!loaded++) {
+			if(!load(&u, argv[i]))
+				return error("Load", "Failed");
+			if(!uxn_eval(&u, PAGE_PROGRAM))
+				return error("Init", "Failed");
+		} else {
+			char *p = argv[i];
+			while(*p) console_input(&u, *p++);
+			console_input(&u, '\n');
+		}
+	}
+	if(!loaded)
+		return error("Input", "Missing");
 
 	run(&u);
 

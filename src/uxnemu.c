@@ -494,9 +494,15 @@ uxn_halt(Uxn *u, Uint8 error, char *name, int id)
 }
 
 static int
+console_input(Uxn *u, char c)
+{
+	devconsole->dat[0x2] = c;
+	return uxn_eval(u, devconsole->vector);
+}
+
+static int
 run(Uxn *u)
 {
-	uxn_eval(u, PAGE_PROGRAM);
 	redraw(u);
 	while(!devsystem->dat[0xf]) {
 		SDL_Event event;
@@ -528,8 +534,7 @@ run(Uxn *u)
 				break;
 			default:
 				if(event.type == stdin_event) {
-					devconsole->dat[0x2] = event.cbutton.button;
-					uxn_eval(u, devconsole->vector);
+					console_input(u, event.cbutton.button);
 				} else if(event.type >= audio0_event && event.type < audio0_event + POLYPHONY)
 					uxn_eval(u, peek16((devaudio0 + (event.type - audio0_event))->dat, 0));
 			}
@@ -560,14 +565,10 @@ main(int argc, char **argv)
 {
 	SDL_DisplayMode DM;
 	Uxn u;
-	int i;
+	int i, loaded = 0;
 
-	if(argc < 2)
-		return error("usage", "uxnemu file.rom");
 	if(!uxn_boot(&u))
 		return error("Boot", "Failed to start uxn.");
-	if(!load(&u, argv[argc - 1]))
-		return error("Load", "Failed to open rom.");
 
 	/* system   */ devsystem = uxn_port(&u, 0x0, system_talk);
 	/* console  */ devconsole = uxn_port(&u, 0x1, console_talk);
@@ -589,20 +590,30 @@ main(int argc, char **argv)
 	/* set default zoom */
 	SDL_GetCurrentDisplayMode(0, &DM);
 	set_zoom(DM.w / 1280);
-	/* get default zoom from flags */
-	for(i = 1; i < argc - 1; i++) {
+	for(i = 1; i < argc; ++i) {
+		/* get default zoom from flags */
 		if(strcmp(argv[i], "-s") == 0) {
-			if((i + 1) < argc - 1)
+			if(i < argc - 1)
 				set_zoom(atoi(argv[++i]));
 			else
 				return error("Opt", "-s No scale provided.");
+		} else if(!loaded++) {
+			if(!load(&u, argv[i]))
+				return error("Load", "Failed to open rom.");
+			if(!init())
+				return error("Init", "Failed to initialize emulator.");
+			if(!set_size(WIDTH, HEIGHT, 0))
+				return error("Window", "Failed to set window size.");
+			if(!uxn_eval(&u, PAGE_PROGRAM))
+				return error("Init", "Failed");
+		} else {
+			char *p = argv[i];
+			while(*p) console_input(&u, *p++);
+			console_input(&u, '\n');
 		}
 	}
-
-	if(!init())
-		return error("Init", "Failed to initialize emulator.");
-	if(!set_size(WIDTH, HEIGHT, 0))
-		return error("Window", "Failed to set window size.");
+	if(!loaded)
+		return error("usage", "uxnemu file.rom");
 
 	run(&u);
 	quit();
