@@ -33,6 +33,7 @@ tasks:
         ssh mac "rm -f uxn-macos.tar.gz; export PATH=\"\${PATH}:/usr/local/bin\"; set -ex; cd uxn; git fetch; git checkout .; git clean -xfd; git checkout $(cd uxn && git rev-parse HEAD); ./build.sh --no-run; mv bin uxn; tar -zcf ../uxn-macos.tar.gz uxn"
         rsync mac:uxn-macos.tar.gz out/
     - upload: |
+        if [ "$(cd uxn && git rev-parse HEAD)" != "$(cat uxn/.git/refs/remotes/origin/main)" ]; then exit; fi
         ls -l out
         tar -czf out.tar.gz -C out uxn-linux-amd64.tar.gz uxn-windows-64bit.zip uxn-macos.tar.gz
         acurl() {
