@@ -64,6 +64,8 @@ fi
 echo "Assembling(asma).."
 ./bin/uxnasm projects/software/asma.tal bin/asma.rom
 
+if [ "${1}" = '--no-run' ]; then exit; fi
+
 echo "Assembling(piano).."
 bin/uxncli bin/asma.rom projects/examples/demos/piano.tal bin/piano.rom 2> bin/piano.log
 
