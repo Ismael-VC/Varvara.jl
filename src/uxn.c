@@ -105,7 +105,7 @@ uxn_eval(Uxn *u, Uint16 vec)
 			case 0x0a: /* GTH */ a = pop(u->src), b = pop(u->src); push8(u->src, b > a); break;
 			case 0x0b: /* LTH */ a = pop(u->src), b = pop(u->src); push8(u->src, b < a); break;
 			case 0x0c: /* JMP */ a = pop(u->src); warp(u, a); break;
-			case 0x0d: /* JNZ */ a = pop(u->src); if(pop8(u->src)) warp(u, a); break;
+			case 0x0d: /* JCN */ a = pop(u->src); if(pop8(u->src)) warp(u, a); break;
 			case 0x0e: /* JSR */ a = pop(u->src); push16(u->dst, u->ram.ptr); warp(u, a); break;
 			case 0x0f: /* STH */ a = pop(u->src); push(u->dst, a); break;
 			/* Memory */
