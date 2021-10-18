@@ -191,9 +191,10 @@ addref(Label *l, Uint8 rel)
 	if(rel) {
 		int pos = cpos(l->name, '/');
 		if(pos != -1) {
-			char root[64];
-			Label *rl = findlabel(scpy(l->name, root, pos));
-			++rl->refs;
+			char parent[64];
+			Label *rl = findlabel(scpy(l->name, parent, pos));
+			if(rl)
+				++rl->refs;
 		}
 	}
 	return ++l->refs;
