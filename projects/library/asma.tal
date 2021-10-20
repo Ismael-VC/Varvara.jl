@@ -371,10 +371,13 @@ include projects/library/file-read-chunks.tal
 	#57 SUB
 	JMP2r
 
-@asma-parse-hex-string ( -- value* 06 if valid hex and length > 2
+@asma-parse-hex-string ( -- value* 06 if valid hex and 2 < length <= 4
                          OR value* 03 if valid hex and length <= 2
                          OR 00 otherwise )
-	;asma/token LDA2 DUP2 ,strlen JSR #0002 GTH2 ROT ROT
+	;asma/token LDA2 DUP2 ,strlen JSR ( token* length^ )
+	DUP2 #0004 GTH2 ,&fail2 JCN
+	&resume
+	#0002 GTH2 ROT ROT
 	LIT2r 0000
 
 	&loop
@@ -393,13 +396,17 @@ include projects/library/file-read-chunks.tal
 	,&loop JMP
 
 	&fail
-	POP POP2 POP2r
-	DUP EOR
+	POP2r
+	&fail2
+	POP2 POP2
+	#00
 	JMP2r
 
 %asma-SHORT-FLAG { #20 }
 %asma-RETURN-FLAG { #40 }
 %asma-KEEP-FLAG { #80 }
+
+include projects/library/string.tal
 
 @asma-traverse-tree ( incoming-ptr* -- binary-ptr* 00 if key found
                                     OR node-incoming-ptr* 01 if key not found )
@@ -407,7 +414,6 @@ include projects/library/file-read-chunks.tal
 	( fall through to traverse-tree )
 
 include projects/library/binary-tree.tal
-include projects/library/string.tal
 
 @asma-parse-opcode ( -- byte 00 if valid opcode
                      OR 01 otherwise )
