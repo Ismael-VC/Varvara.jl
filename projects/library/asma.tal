@@ -598,7 +598,10 @@ include projects/library/heap.tal
 	,&new-label JCN
 
 	( label already exists )
-	( FIXME check label address hasn't changed (label defined twice) )
+	LDA2k ;asma/addr LDA2 EQU2 ,&address-match JCN
+	;asma-msg-redefined ;asma/error STA2
+
+	&address-match
 	#01 JMP2r
 
 	&new-label ( incoming-ptr* )
@@ -817,6 +820,7 @@ include projects/library/heap.tal
 @asma-msg-macro     "Macro 20 "already 20 "exists 00
 @asma-msg-rewound   "Memory 20 "overwrite 00
 @asma-msg-too-deep  "Recursion 20 "level 20 "too 20 "deep 00
+@asma-msg-redefined "Label 20 "redefined 00
 
 ( trees )
 
