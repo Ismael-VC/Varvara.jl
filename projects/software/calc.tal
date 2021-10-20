@@ -1,4 +1,6 @@
-( a simple calculator )
+( 
+	a simple calculator
+	uxnasm projects/software/calc.tal bin/calc.rom && uxnemu bin/calc.rom )
 
 %+  { ADD } %-   { SUB }              %/   { DIV }
 %<  { LTH } %>   { GTH }  %=  { EQU } %!   { NEQ }
@@ -34,7 +36,6 @@
 |80 @Controller [ &vector $2 &button   $1 &key    $1 ]
 |90 @Mouse      [ &vector $2 &x        $2 &y      $2 &state $1 &wheel  $1 ]
 |a0 @File       [ &vector $2 &success  $2 &offset-hs $2 &offset-ls $2 &name   $2 &length $2 &load $2 &save   $2 ]
-|b0 @DateTime   [ &year   $2 &month    $1 &day    $1 &hour  $1 &minute $1 &second $1 &dotw $1 &doty   $2 &isdst $1 ]
 
 ( variables )
 
@@ -48,7 +49,7 @@
 @center
 	&x $2 &y $2
 @pointer
-	&x  $2 &y  $2
+	&x $2 &y $2 &last $1
 @keypad-frame
 	&x $2 &y $2 &x2 $2 &y2 $2
 @modpad-frame
@@ -63,9 +64,9 @@
 |0100 ( -> )
 
 	( theme ) 
-	#6e7d .System/r DEO2 
-	#6ec6 .System/g DEO2 
-	#6e95 .System/b DEO2
+	#0e7d .System/r DEO2 
+	#0ec6 .System/g DEO2 
+	#0e95 .System/b DEO2
 
 	( size )
 	#0090 .Screen/width DEO2
@@ -109,7 +110,7 @@
 	.center/x LDZ2 #0020 -- 
 	DUP2 .input-frame/x STZ2
 		#0040 ++ .input-frame/x2 STZ2
-	.center/y LDZ2 #0030 -- 
+	.center/y LDZ2 #002a -- 
 	DUP2 .input-frame/y STZ2
 		#0010 ++ .input-frame/y2 STZ2
 
@@ -164,20 +165,29 @@ BRK
 	.pointer/y LDZ2 .Screen/y DEO2
 	#41 .Mouse/state DEI #01 = + .Screen/sprite DEO
 
-	.Mouse/state DEI #00 ! ,&continue JCN
-		;redraw JSR2 BRK
-		&continue
-
-	.Mouse/x DEI2 .Mouse/y DEI2 
-	OVR2 OVR2 .keypad-frame 
-		;within-rect JSR2 ;click-keypad JCN2
-	OVR2 OVR2 .input-frame 
-		;within-rect JSR2 ;click-input JCN2
-	OVR2 OVR2 .modpad-frame 
-		;within-rect JSR2 ;click-modpad JCN2
-	OVR2 OVR2 .bitpad-frame 
-		;within-rect JSR2 ;click-bitpad JCN2
-	POP2 POP2
+	( handle events )
+	.Mouse/state DEI .pointer/last LDZ
+	DUP2 #0100 !! ,&no-down JCN
+		.Mouse/state DEI .pointer/last STZ
+		POP2
+		.Mouse/x DEI2 .Mouse/y DEI2 
+		OVR2 OVR2 .keypad-frame 
+			;within-rect JSR2 ;click-keypad JCN2
+		OVR2 OVR2 .input-frame 
+			;within-rect JSR2 ;click-input JCN2
+		OVR2 OVR2 .modpad-frame 
+			;within-rect JSR2 ;click-modpad JCN2
+		OVR2 OVR2 .bitpad-frame 
+			;within-rect JSR2 ;click-bitpad JCN2
+		POP2 POP2
+		BRK
+		&no-down
+	DUP2 #0001 !! ,&no-up JCN
+		.Mouse/state DEI .pointer/last STZ
+		POP2 ;redraw JSR2 BRK
+		&no-up
+	POP2
+	.Mouse/state DEI .pointer/last STZ
 
 BRK
 
@@ -230,12 +240,10 @@ BRK
 
 	POP2
 	.input-frame/x LDZ2 -- 8// NIP
-	DUP #06 ! ,&no-push JCN
-		.input/value LDZ2 #0001 << ,&no-push-empty JCN
-			;do-push JSR2
-			&no-push-empty
+	DUP #00 ! ,&no-push JCN
+		;do-push JSR2
 		&no-push
-	DUP #07 ! ,&no-pop JCN
+	DUP #01 ! ,&no-pop JCN
 		;do-pop JSR2
 		&no-pop
 	POP
@@ -277,9 +285,12 @@ RTN
 
 @do-push ( -- )
 
-	.stack/length LDZ #07 < ,&continue JCN
+	.input/value LDZ2 #0000 >> ,&not-empty JCN
 		RTN
-		&continue
+		&not-empty
+	.stack/length LDZ #07 < ,&not-full JCN
+		RTN
+		&not-full
 	#40 .Audio0/pitch DEO
 	.input/value LDZ2 ;push JSR2
 
@@ -374,7 +385,7 @@ RTN
 	#ff ;draw-modpad JSR2
 	#ff ;draw-input JSR2
 	;draw-bitpad JSR2
-	;draw-stack JSR2
+	,draw-stack JSR
 
 RTN
 
@@ -384,8 +395,8 @@ RTN
 	&loop
 		( color ) DUP #08 .stack/length LDZ - #01 - > STH
 		( value ) DUP 2* .stack/items + [ #10 .stack/length LDZ 2* - - ] LDZ2 STH2
-		( y ) DUP TOS 8** .input-frame/y LDZ2 ++ #0048 -- STH2
-		( x ) .input-frame/x LDZ2 #0020 ++ STH2r STH2r STHr ;draw-short JSR2
+		( y ) DUP TOS 8** .input-frame/y LDZ2 ++ #004c -- STH2
+		( x ) .input-frame/x LDZ2 #0020 ++ STH2r STH2r STHr ,draw-short JSR
 		INC GTHk ,&loop JCN
 	POP2
 
@@ -395,13 +406,20 @@ RTN
 
 	STH STH2
 	.Screen/y DEO2
-	.Screen/x DEO2
+	#0020 ++ .Screen/x DEO2
 	#04 #00
 	&loop
 		.Screen/x DEI2 #0008 -- .Screen/x DEO2
 		( value ) DUP STH2kr ROT 4* SFT2 #000f AND2
 		( value glyph ) 8** ;font-hex ++ .Screen/addr DEO2
-		ROTr STHkr ROTr ROTr .Screen/sprite DEO
+		( no not draw zeros )
+		( get color ) ROTr STHkr 
+		( place stack ) ROTr ROTr
+		( no leading zeros )
+		OVR STH2kr ,get-length JSR < ,&visible JCN
+			POP #00
+			&visible
+		( draw ) .Screen/sprite DEO
 		INC GTHk ,&loop JCN
 	POP2
 	POP2r POPr
@@ -420,24 +438,21 @@ RTN
 @draw-input ( key -- )
 
 	STH
-	.input-frame/y LDZ2 #0003 ++ .Screen/y DEO2
-	#04 #00
-	&loop
-		( x ) DUP TOS 8** .input-frame/x LDZ2 #0018 ++ SWP2 -- .Screen/x DEO2
-		( value ) STHk .input/value LDZ2 STHr 4* SFT2 #000f AND2
-		( value glyph ) 8** ;font-hex ++ .Screen/addr DEO2
-		( color ) DUP INC .input/value LDZ2 ,get-length JSR >
-		#01 + .Screen/sprite DEO
-		INC GTHk ,&loop JCN
-	POP2
+
+	( draw value )
+	.input-frame/x LDZ2 #0020 ++
+	.input-frame/y LDZ2 #0003 ++
+	.input/value LDZ2
+	#02 
+		;draw-short JSR2
 
 	( controls )
-	.input-frame/x LDZ2 #0030 ++
+	.input-frame/x LDZ2
 	.input-frame/y LDZ2
 	;stack-icns/push [ STHkr #00 = ] #02
 		;draw-key-thin JSR2
 
-	.input-frame/x LDZ2 #0038 ++
+	.input-frame/x LDZ2 #0008 ++
 	.input-frame/y LDZ2
 	;stack-icns/pop [ STHkr #01 = ] #03
 		;draw-key-thin JSR2
