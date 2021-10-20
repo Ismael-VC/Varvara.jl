@@ -790,7 +790,7 @@ include projects/library/heap.tal
 	JMP2r
 
 	&not-include
-	;asma-msg-label ;asma/error STA2
+	;asma-msg-token ;asma/error STA2
 	JMP2r
 
 	&too-deep
@@ -813,6 +813,7 @@ include projects/library/heap.tal
 @asma-msg-zero-page "Address 20 "not 20 "in 20 "zero 20 "page 00
 @asma-msg-relative  "Address 20 "outside 20 "range 00
 @asma-msg-label     "Label 20 "not 20 "found 00
+@asma-msg-token     "Unrecognised 20 "token 00
 @asma-msg-macro     "Macro 20 "already 20 "exists 00
 @asma-msg-rewound   "Memory 20 "overwrite 00
 @asma-msg-too-deep  "Recursion 20 "level 20 "too 20 "deep 00

@@ -51,7 +51,7 @@ expect_failure 'Address outside range: ,hello' <<'EOD'
 |1000 @hello
 |2000 ,hello
 EOD
-expect_failure 'Label not found: hello' <<'EOD'
+expect_failure 'Unrecognised token: hello' <<'EOD'
 hello
 EOD
 expect_failure 'Macro already exists: %me' <<'EOD'
