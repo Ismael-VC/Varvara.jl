@@ -592,8 +592,8 @@ include projects/library/heap.tal
 	POP POP2
 	JMP2r
 
-@asma-label-helper ( incoming-ptr* -- binary-ptr* 00 if label existed already
-                                   OR binary-ptr* 01 if label was created )
+@asma-label-helper ( incoming-ptr* -- binary-ptr* 01 if label existed already
+                                   OR binary-ptr* 00 if label was created )
 	;asma-traverse-tree JSR2
 	,&new-label JCN
 
