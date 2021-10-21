@@ -86,7 +86,7 @@ contexts:
 
     # Pushing to stack
     - match: '\"(\S+)\s?'
-      scope: variable.parameter.option
+      scope: constant.numeric
       pop: true
     
     # Addressing
