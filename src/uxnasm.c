@@ -12,7 +12,7 @@ WITH REGARD TO THIS SOFTWARE.
 */
 
 #define TRIM 0x0100
-#define LENGTH 0x10000 - TRIM
+#define LENGTH 0x10000
 
 typedef unsigned char Uint8;
 typedef signed char Sint8;
@@ -366,11 +366,13 @@ pass2(FILE *f)
 		if(skipblock(w, &ccmnt, '(', ')')) continue;
 		if(skipblock(w, &cmacr, '{', '}')) continue;
 		if(w[0] == '|') {
-			if(p.length && shex(w + 1) < p.ptr)
+			if(p.length && (Uint16)shex(w + 1) < p.ptr)
 				return error("Pass 2 - Memory overwrite", w);
 			p.ptr = shex(w + 1);
 			continue;
 		} else if(w[0] == '$') {
+			if(p.length && (Uint16)(p.ptr + shex(w + 1)) < p.ptr)
+				return error("Pass 2 - Memory overwrite", w);
 			p.ptr += shex(w + 1);
 			continue;
 		} else if(w[0] == '@') {
