@@ -110,6 +110,7 @@ static void
 pushbyte(Uint8 b, int lit)
 {
 	if(lit) pushbyte(findopcode("LIT"), 0);
+	if(p.ptr > LENGTH) fprintf(stderr, "--- Out of bounds(%04x:%02x)\n", p.ptr, b);
 	p.data[p.ptr++] = b;
 	p.length = p.ptr;
 }
