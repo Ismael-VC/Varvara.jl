@@ -1,10 +1,4 @@
-#include <stdio.h>
-#include <time.h>
-#include <unistd.h>
-#include <string.h>
-#include "uxn.h"
-
-/*
+#=
 Copyright (c) 2021 Devine Lu Linvega
 
 Permission to use, copy, modify, and distribute this software for any
@@ -13,68 +7,62 @@ copyright notice and this permission notice appear in all copies.
 
 THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
 WITH REGARD TO THIS SOFTWARE.
-*/
+=#
 
-#pragma mark - Core
+module UxnCLI
 
-static Device *devsystem, *devconsole;
+using Match
 
-static int
-error(char *msg, const char *err)
-{
-	fprintf(stderr, "Error %s: %s\n", msg, err);
-	return 0;
-}
+using UXN
 
-static void
-inspect(Stack *s, char *name)
-{
-	Uint8 x, y;
-	fprintf(stderr, "\n%s\n", name);
-	for(y = 0; y < 0x04; ++y) {
-		for(x = 0; x < 0x08; ++x) {
-			Uint8 p = y * 0x08 + x;
-			fprintf(stderr,
-				p == s->ptr ? "[%02x]" : " %02x ",
-				s->dat[p]);
-		}
-		fprintf(stderr, "\n");
-	}
-}
+export devconsole, devsystem
 
-#pragma mark - Devices
+# Core
+
+let devsystem::Device, devconsole::Device
+
+function inspect(s::Stack, name::AbstractString)::Nothing
+	@info name
+	head = ""
+	for y in 0:3, x in 0:7
+		p = y * 8 + x
+		sp = s.dat[p + 1]
+		head *= p == s.ptr ? @sprintf("[%02x] ", sp) : @sprintf("%02x ", sp)
+	end
+	@info head
+end
+
+
+
+# Devices
 
 static int
-system_talk(Device *d, Uint8 b0, Uint8 w)
-{
-	if(!w) { /* read */
-		switch(b0) {
-		case 0x2: d->dat[0x2] = d->u->wst.ptr; break;
-		case 0x3: d->dat[0x3] = d->u->rst.ptr; break;
-		}
-	} else { /* write */
-		switch(b0) {
-		case 0x2: d->u->wst.ptr = d->dat[0x2]; break;
-		case 0x3: d->u->rst.ptr = d->dat[0x3]; break;
-		case 0xe:
-			inspect(&d->u->wst, "Working-stack");
-			inspect(&d->u->rst, "Return-stack");
-			break;
-		case 0xf: return 0;
-		}
-	}
-	return 1;
-}
+system_talk(d::Device, b0::UInt8, w::UInt8)::Int
+	if iszero(w) { #= read =#
+		@match b0 begin
+			0x2 => d.dat[2 + 1] = d.u.wst.ptr
+			0x3 => d.dat[3 + 1] = d.u.rst.ptr
+		end
+	else #= write =#
+		@match b0 begin
+			0x2 => d->u->wst.ptr = d->dat[2 + 1]
+			0x3 => d->u->rst.ptr = d->dat[3 + 1]
+			0xe => begin
+				inspect(d.u.wst, "Working-stack")
+				inspect(d.u.rst, "Return-stack")
+			end
+			0xf => return 0
+		end
+	end
+	return 1
+end
 
-static int
-console_talk(Device *d, Uint8 b0, Uint8 w)
-{
-	if(b0 == 0x1)
-		d->vector = peek16(d->dat, 0x0);
-	if(w && b0 > 0x7)
-		write(b0 - 0x7, (char *)&d->dat[b0], 1);
-	return 1;
-}
+function console_talk(d::Device, b0::UInt8, w::UInt8)
+	b0 == 0x1 && (d.vector = peek16(d.dat, 0x0))
+	(w && b0 > 0x7) && write(b0 - 0x7, Char(d.dat[b0], 1))
+
+	return 1
+end
 
 static int
 file_talk(Device *d, Uint8 b0, Uint8 w)
@@ -117,31 +105,21 @@ datetime_talk(Device *d, Uint8 b0, Uint8 w)
 }
 
 static int
-nil_talk(Device *d, Uint8 b0, Uint8 w)
-{
-	(void)d;
-	(void)b0;
-	(void)w;
-	return 1;
-}
+nil_talk(d::Device, b0::Uint8, w::Uint8) = return 1
 
-#pragma mark - Generics
+# Generics
 
-static const char *errors[] = {"underflow", "overflow", "division by zero"};
+const ERRORS = ["underflow", "overflow", "division by zero"]
 
-int
-uxn_halt(Uxn *u, Uint8 error, char *name, int id)
-{
-	fprintf(stderr, "Halted: %s %s#%04x, at 0x%04x\n", name, errors[error - 1], id, u->ram.ptr);
-	return 0;
-}
+function uxn_halt(u::Uxn, err::UInt8, name::AbstractString, id::Int)::Int
+	@error(@sprintf("Halted: %s %s#%04x, at 0x%04x", name, errors[error], id, u.ram.ptr))
+	return 0
+end
 
-static int
-console_input(Uxn *u, char c)
-{
-	devconsole->dat[0x2] = c;
-	return uxn_eval(u, devconsole->vector);
-}
+function console_input(u::Uxn, c::Char)::Int
+	devconsole.dat[0x2] = c
+	return uxn_eval(u, devconsole.vector);
+end
 
 static void
 run(Uxn *u)
@@ -210,3 +188,8 @@ main(int argc, char **argv)
 
 	return 0;
 }
+
+
+end  # let
+
+end  # module
