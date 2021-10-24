@@ -588,8 +588,8 @@ main(int argc, char **argv)
 	/* unused   */ uxn_port(&u, 0xf, nil_talk);
 
 	/* set default zoom */
-	SDL_GetCurrentDisplayMode(0, &DM);
-	set_zoom(DM.w / 1280);
+	if(SDL_GetCurrentDisplayMode(0, &DM) == 0)
+		set_zoom(DM.w / 1280);
 	for(i = 1; i < argc; ++i) {
 		/* get default zoom from flags */
 		if(strcmp(argv[i], "-s") == 0) {
