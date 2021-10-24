@@ -231,7 +231,8 @@ redraw(Uxn *u)
 static void
 quit(void)
 {
-	SDL_UnlockAudioDevice(audio_id);
+	if(audio_id)
+		SDL_CloseAudioDevice(audio_id);
 	SDL_DestroyTexture(gTexture);
 	gTexture = NULL;
 	SDL_DestroyRenderer(gRenderer);
