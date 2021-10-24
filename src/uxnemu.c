@@ -156,8 +156,9 @@ set_size(Uint16 width, Uint16 height, int is_resize)
 	SDL_RenderSetLogicalSize(gRenderer, ppu.width + PAD * 2, ppu.height + PAD * 2);
 	gTexture = SDL_CreateTexture(gRenderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STATIC, ppu.width + PAD * 2, ppu.height + PAD * 2);
 	if(gTexture == NULL || SDL_SetTextureBlendMode(gTexture, SDL_BLENDMODE_NONE))
-		return error("sdl_texture", SDL_GetError());
-	SDL_UpdateTexture(gTexture, NULL, ppu_screen, sizeof(Uint32));
+		return error("gTexture", SDL_GetError());
+	if(SDL_UpdateTexture(gTexture, NULL, ppu_screen, sizeof(Uint32)) != 0)
+		return error("SDL_UpdateTexture", SDL_GetError());
 	if(is_resize)
 		set_window_size(gWindow, (ppu.width + PAD * 2) * zoom, (ppu.height + PAD * 2) * zoom);
 	ppu.reqdraw = 1;
@@ -219,7 +220,8 @@ redraw(Uxn *u)
 	for(y = 0; y < ppu.height; ++y)
 		for(x = 0; x < ppu.width; ++x)
 			ppu_screen[x + y * ppu.width] = palette[ppu_read(&ppu, x, y)];
-	SDL_UpdateTexture(gTexture, &gRect, ppu_screen, ppu.width * sizeof(Uint32));
+	if(SDL_UpdateTexture(gTexture, &gRect, ppu_screen, ppu.width * sizeof(Uint32)) != 0)
+		error("SDL_UpdateTexture", SDL_GetError());
 	SDL_RenderClear(gRenderer);
 	SDL_RenderCopy(gRenderer, gTexture, NULL, NULL);
 	SDL_RenderPresent(gRenderer);
