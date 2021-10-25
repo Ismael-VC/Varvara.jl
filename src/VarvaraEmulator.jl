@@ -69,25 +69,32 @@ end
 abstract type AbstractCPU end
 mutable struct Device{C<:AbstractCPU, F<:Function}
   cpu::C
-  addr::UInt8
+  id_addr::Int
   vector::UInt16
   talk::F
   mem::OVector{UInt8}
   dat::OVector{UInt8}
+end
 
-  function Device(cpu::C, id::Int, talkfn::F)::Device where {C<:AbstractCPU, F<:Function }
-    d = new{C, F}(u, id, 0x000, talkfn, cpu.ram.dat, OVector{UInt8}(0x10))
-    cpu.dev[id] = d
+function Device(cpu::C, id_addr::Int, talkfn::F)::Device where {C<:AbstractCPU, F<:Function}
+  d = Device(cpu, id_addr, 0x000, talkfn, cpu.ram.dat, OVector{UInt8}(0x10))
+  cpu.dev[id_addr] = d
 
-    return d
-  end
+  return d
+end
 
-  Device(talkfn::F, cpu::C, id::Int)::Device where {C<:AbstractCPU, F<:Function} = new{C, F}(u, id, talkfn)
+# https://stackoverflow.com/questions/69705873/why-this-parametric-constructor-only-works-with-multiline-definition
+# Device(talkfn::F, cpu::C, id_addr::Int)::Device where {C<:AbstractCPU, F<:Function} = Device(cpu, id_addr, talkfn)
+# Device(talkfn::F, cpu::C, id_addr::Int)::Device where {C<:AbstractCPU, F<:Function} = begin
+#   Device(cpu, id_addr, talkfn)
+# end
+function Device(talkfn::F, cpu::C, id_addr::Int)::Device where {C<:AbstractCPU, F<:Function}
+  Device(cpu, id_addr, talkfn)
+end
 
-  function Device(cpu::C, id::Int) where {C<:AbstractCPU, F<:Function}
-    new{C, F}(u, id) do d::Device, b0::UInt8, w::UInt8
-      return true
-    end
+function Device(cpu::C, id_addr::Int) where {C<:AbstractCPU}
+  Device(cpu, id_addr) do d::Device, b0::UInt8, w::UInt8
+    return true
   end
 end
 
