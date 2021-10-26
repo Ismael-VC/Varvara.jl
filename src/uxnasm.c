@@ -15,6 +15,7 @@ WITH REGARD TO THIS SOFTWARE.
 #define LENGTH 0x10000
 
 #define LABELS 512
+#define MACROS 256
 
 typedef unsigned char Uint8;
 typedef signed char Sint8;
@@ -31,10 +32,10 @@ typedef struct {
 } Label;
 
 typedef struct {
-	Uint8 data[LENGTH], mlen;
-	Uint16 ptr, length, llen;
+	Uint8 data[LENGTH];
+	Uint16 ptr, length, llen, mlen;
 	Label labels[LABELS];
-	Macro macros[256];
+	Macro macros[MACROS];
 } Program;
 
 Program p;
@@ -158,6 +159,8 @@ makemacro(char *name, FILE *f)
 		return error("Macro name is hex number", name);
 	if(findopcode(name) || scmp(name, "BRK", 4) || !slen(name) || scmp(name, "include", 8))
 		return error("Macro name is invalid", name);
+	if(p.mlen == MACROS)
+		return error("Too many macros", name);
 	m = &p.macros[p.mlen++];
 	scpy(name, m->name, 64);
 	while(fscanf(f, "%63s", word) == 1) {
