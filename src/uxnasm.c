@@ -14,6 +14,8 @@ WITH REGARD TO THIS SOFTWARE.
 #define TRIM 0x0100
 #define LENGTH 0x10000
 
+#define LABELS 512
+
 typedef unsigned char Uint8;
 typedef signed char Sint8;
 typedef unsigned short Uint16;
@@ -31,7 +33,7 @@ typedef struct {
 typedef struct {
 	Uint8 data[LENGTH], mlen;
 	Uint16 ptr, length, llen;
-	Label labels[512];
+	Label labels[LABELS];
 	Macro macros[256];
 } Program;
 
@@ -178,6 +180,8 @@ makelabel(char *name)
 		return error("Label name is hex number", name);
 	if(findopcode(name) || scmp(name, "BRK", 4) || !slen(name))
 		return error("Label name is invalid", name);
+	if(p.llen == LABELS)
+		return error("Too many labels", name);
 	l = &p.labels[p.llen++];
 	l->addr = addr;
 	l->refs = 0;
