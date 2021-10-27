@@ -83,14 +83,7 @@ function Device(cpu::C, id_addr::Int, talkfn::F)::Device where {C<:AbstractCPU, 
   return d
 end
 
-# https://stackoverflow.com/questions/69705873/why-this-parametric-constructor-only-works-with-multiline-definition
-# Device(talkfn::F, cpu::C, id_addr::Int)::Device where {C<:AbstractCPU, F<:Function} = Device(cpu, id_addr, talkfn)
-# Device(talkfn::F, cpu::C, id_addr::Int)::Device where {C<:AbstractCPU, F<:Function} = begin
-#   Device(cpu, id_addr, talkfn)
-# end
-function Device(talkfn::F, cpu::C, id_addr::Int)::Device where {C<:AbstractCPU, F<:Function}
-  Device(cpu, id_addr, talkfn)
-end
+(Device(talkfn::F, cpu::C, id_addr::Int)::Device) where {C<:AbstractCPU, F<:Function} = Device(cpu, id_addr, talkfn)
 
 function Device(cpu::C, id_addr::Int) where {C<:AbstractCPU}
   Device(cpu, id_addr) do d::Device, b0::UInt8, w::UInt8

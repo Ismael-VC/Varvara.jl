@@ -10,14 +10,14 @@ THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
 WITH REGARD TO THIS SOFTWARE.
 =#
 
-module UxnCLI
+module VarvaraCLI
 
 
 using Dates
 import Match
-using Match: @match as @switch
+using Match: @match
 
-using UXN
+using .VarvaraEmulator
 
 export devconsole, devsystem, inspect, system_talk, nil_talk, datetime_talk,
        console_talk
@@ -57,50 +57,49 @@ end
 
 # Devices
 
-function system_talk(d::Device, b0::UInt8, w::UInt8)::Int
-  if iszero(w)  #= read =#
-    @switch (b0) begin
+function system_talk(d::Device, b0::UInt8, w::UInt8)::Bool
+  if w  #= read =#
+    @switch b0 begin
       0x2 => d.dat[2] = d.u.wst.ptr
       0x3 => d.dat[3] = d.u.rst.ptr
     end
   else #= write =#
-    @switch (b0) begin
+    @switch b0 begin
       0x2 => d.u.wst.ptr = d.dat[2]
       0x3 => d.u.rst.ptr = d.dat[3]
       0xe => begin
         inspect(d.u.wst, "Working-stack")
         inspect(d.u.rst, "Return-stack")
       end
-      0xf => return 0
+      0xf => return false
     end
   end
-  return 1
+  return true
 end
 
-function console_talk(d::Device, b0::UInt8, w::UInt8)
+function console_talk(d::Device, b0::UInt8, w::UInt8)::Bool
   b0 == 0x1 && (d.vector = peek16(d.dat, 0x0))
   (!iszero(w) && b0 > 0x7) && write(FILDES[b0 - 0x7], Char(d.dat[b0]))
 
-  return 1
+  return true
 end
 
 
-function file_talk(Device d, Uint8 b0, Uint8 w)::Int
+function file_talk(d::Device, b0::Uint8, w::Bool)::Bool
   read = b0 == 0xd
-  if(w && (read || b0 == 0xf))
-    char name = (char )d.mem[peek16(d.dat, 0x8)]
-    Uint16 result = 0, length = peek16(d.dat, 0xa)
-    long offset = (peek16(d.dat, 0x4) << 16) + peek16(d.dat, 0x6)
-    Uint16 addr = peek16(d.dat, b0 - 1)
-    FILE f = fopen(name, read ? "rb" : (offset ? "ab" : "wb"))
-    if(f)
-      if(fseek(f, offset, SEEK_SET) != -1)
-        result = read ? fread(d.mem[addr], 1, length, f) : fwrite(d.mem[addr], 1, length, f)
-      fclose(f)
+  if w && (read || b0 == 0xf)
+    name::Char = Char(d.mem[peek16(d.dat, 0x8)])
+    result::UInt16 = 0, length = peek16(d.dat, 0xa)
+    offset::Int32 = (Int32(peek16(d.dat, 0x4) << 16)) + peek16(d.dat, 0x6)
+    addr::UInt16 = peek16(d.dat, b0 - 1)
+    open(name, read ? "r" : (offset ? "a" : "w")) do f::IOStream
+      if seek(f, offset, SEEK_SET) != -1
+        result = read ? read(d.mem[addr], 1, length, f) : write(d.mem[addr], 1, length, f)
+      end
     end
     poke16(d.dat, 0x2, result)
   end
-  return 1
+  return true
 end
 
 struct Ctm
@@ -162,7 +161,7 @@ const UXN_ERRORS = [UxnUnderflowError, UxnOverflowError, UxnZeroDivisionError]
 
 function uxn_halt(u::Uxn, err::UInt8, name::AbstractString, id::Int)::Exception
   @error "Halted"
-  throw UXN_ERRORS[error](@sprintf("%s#%04x, at 0x%04x", id, u.ram.ptr))
+  throw(UXN_ERRORS[error](@sprintf("%s#%04x, at 0x%04x", id, u.ram.ptr)))
 end
 
 function console_input(u::Uxn, c::Char)::Int
@@ -219,11 +218,11 @@ function main()::Int
   for rom in ARGS
     if !loaded
       !load(u, rom) && (; return 0)
-      !uxn_eval(u, PAGE_PROGRAM))
+      !uxn_eval(u, PAGE_PROGRAM)
         (@error("Init: Failed"); return 0)
     else
-      char p = argv[i]
-      while(p) console_input(u, p++)
+      arg = argv[i]
+      while bool(p); console_input(u, p); p += 1; end
       console_input(u, '\n')
     end
   end
