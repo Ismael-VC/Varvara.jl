@@ -12,16 +12,13 @@ WITH REGARD TO THIS SOFTWARE.
 
 module VarvaraCLI
 
-push!(LOAD_PATH, "VarvaraEmulator/")
-
-
 using Dates
 using Printf: @sprintf
 
 import Match
 using Match: @match
 
-using .VarvaraEmulator
+using VarvaraEmulator
 
 export dev_console, dev_system, dev_datetime, dev_file,
        inspect, system_talk, nil_talk, datetime_talk,
