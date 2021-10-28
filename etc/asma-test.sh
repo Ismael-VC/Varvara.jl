@@ -70,5 +70,14 @@ EOD
 expect_failure 'Recursion level too deep: include' <<'EOD'
 include asma-test/in.tal
 EOD
+expect_failure 'Label not found: ;blah' <<'EOD'
+|1000 ;blah
+EOD
+expect_failure 'Label not found: ,blah' <<'EOD'
+|1000 ,blah
+EOD
+expect_failure 'Label not found: .blah' <<'EOD'
+|1000 .blah
+EOD
 echo 'All OK'
 

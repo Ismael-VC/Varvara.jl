@@ -671,7 +671,11 @@ include projects/library/heap.tal
 	JMP2r
 
 	&not-zero-page
+	;asma/pass LDA #00 EQU
+		;asma/error LDA2 ORA
+		ORA ,&ignore-error JCN
 	;asma-msg-zero-page ;asma/error STA2
+	&ignore-error
 	JMP2r
 
 @asma-literal-rel-addr
