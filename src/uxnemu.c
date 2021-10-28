@@ -243,7 +243,7 @@ quit(void)
 }
 
 static int
-init(void)
+init(char *filepath)
 {
 	SDL_AudioSpec as;
 	SDL_zero(as);
@@ -262,7 +262,7 @@ init(void)
 		if(!audio_id)
 			error("sdl_audio", SDL_GetError());
 	}
-	gWindow = SDL_CreateWindow("Uxn", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, (WIDTH + PAD * 2) * zoom, (HEIGHT + PAD * 2) * zoom, SDL_WINDOW_SHOWN);
+	gWindow = SDL_CreateWindow(filepath, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, (WIDTH + PAD * 2) * zoom, (HEIGHT + PAD * 2) * zoom, SDL_WINDOW_SHOWN);
 	if(gWindow == NULL)
 		return error("sdl_window", SDL_GetError());
 	gRenderer = SDL_CreateRenderer(gWindow, -1, 0);
@@ -603,7 +603,7 @@ main(int argc, char **argv)
 		} else if(!loaded++) {
 			if(!load(&u, argv[i]))
 				return error("Load", "Failed to open rom.");
-			if(!init())
+			if(!init(argv[i]))
 				return error("Init", "Failed to initialize emulator.");
 			if(!set_size(WIDTH, HEIGHT, 0))
 				return error("Window", "Failed to set window size.");
