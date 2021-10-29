@@ -432,12 +432,11 @@ include projects/library/binary-tree.tal
 	,&not-found JCN
 
 	;asma-opcodes/_disasm SUB2 #03 SFT2 ( 00 byte / end* )
+	DUP #00 EQU ,&set-keep JCN ( force keep flag for LIT )
 	&loop
 	LDAkr STHr LIT2r 0001 ADD2r ( 00 byte char / end* )
 	DUP ,&not-end JCN
 	POP POP2r
-	DUP ,&not-zero JCN #80 NIP ( LIT by itself needs keep flag, to distinguish from BRK )
-	&not-zero
 	SWP
 	JMP2r
 
@@ -451,7 +450,7 @@ include projects/library/binary-tree.tal
 
 	&not-return
 	LIT 'k NEQ ,&not-keep JCN
-	asma-KEEP-FLAG ORA ,&loop JMP
+	&set-keep asma-KEEP-FLAG ORA ,&loop JMP
 
 	&not-keep ( 00 byte / end* )
 	&not-found ( incoming-ptr* / end* )

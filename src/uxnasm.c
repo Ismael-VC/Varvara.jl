@@ -92,6 +92,7 @@ findopcode(char *s)
 		int m = 0;
 		if(!scmp(ops[i], s, 3))
 			continue;
+		if(!i) i |= (1 << 7); /* force keep for LIT */
 		while(s[3 + m]) {
 			if(s[3 + m] == '2')
 				i |= (1 << 5); /* mode: short */
@@ -103,7 +104,6 @@ findopcode(char *s)
 				return 0; /* failed to match */
 			m++;
 		}
-		if(!i) i |= (1 << 7); /* force LIT nonzero (keep is ignored) */
 		return i;
 	}
 	return 0;
@@ -112,7 +112,7 @@ findopcode(char *s)
 static void
 pushbyte(Uint8 b, int lit)
 {
-	if(lit) pushbyte(findopcode("LITk"), 0);
+	if(lit) pushbyte(findopcode("LIT"), 0);
 	p.data[p.ptr++] = b;
 	p.length = p.ptr;
 }
@@ -120,7 +120,7 @@ pushbyte(Uint8 b, int lit)
 static void
 pushshort(Uint16 s, int lit)
 {
-	if(lit) pushbyte(findopcode("LIT2k"), 0);
+	if(lit) pushbyte(findopcode("LIT2"), 0);
 	pushbyte((s >> 8) & 0xff, 0);
 	pushbyte(s & 0xff, 0);
 }
