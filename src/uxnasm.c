@@ -412,15 +412,16 @@ cleanup(char *filename)
 int
 main(int argc, char *argv[])
 {
-	FILE *f;
+	FILE *src, *dst;
 	if(argc < 3)
 		return !error("usage", "input.tal output.rom");
-	if(!(f = fopen(argv[1], "r")))
-		return !error("Load", "Failed to open source.");
-	if(!pass1(f) || !pass2(f))
+	if(!(src = fopen(argv[1], "r")))
+		return !error("Invalid Input", argv[1]);
+	if(!pass1(src) || !pass2(src))
 		return !error("Assembly", "Failed to assemble rom.");
-	fwrite(p.data + TRIM, p.length - TRIM, 1, fopen(argv[2], "wb"));
-	fclose(f);
+	if(!(dst = fopen(argv[2], "wb")))
+		return !error("Invalid Output", argv[2]);
+	fwrite(p.data + TRIM, p.length - TRIM, 1, dst);
 	cleanup(argv[2]);
 	return 0;
 }
