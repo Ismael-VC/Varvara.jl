@@ -112,7 +112,7 @@ findopcode(char *s)
 static void
 pushbyte(Uint8 b, int lit)
 {
-	if(lit) pushbyte(findopcode("LIT"), 0);
+	if(lit) pushbyte(findopcode("LITk"), 0);
 	p.data[p.ptr++] = b;
 	p.length = p.ptr;
 }
@@ -120,7 +120,7 @@ pushbyte(Uint8 b, int lit)
 static void
 pushshort(Uint16 s, int lit)
 {
-	if(lit) pushbyte(findopcode("LIT2"), 0);
+	if(lit) pushbyte(findopcode("LIT2k"), 0);
 	pushbyte((s >> 8) & 0xff, 0);
 	pushbyte(s & 0xff, 0);
 }
