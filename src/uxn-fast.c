@@ -53,19 +53,6 @@ uxn_eval(Uxn *u, Uint16 vec)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-value"
 #pragma GCC diagnostic ignored "-Wunused-variable"
-		case 0x00: /* LIT */
-		case 0x80: /* LITk */
-			{
-				u->wst.dat[u->wst.ptr] = peek8(u->ram.dat, u->ram.ptr++);
-#ifndef NO_STACK_CHECKS
-				if(__builtin_expect(u->wst.ptr > 254, 0)) {
-					u->wst.error = 2;
-					goto error;
-				}
-#endif
-				u->wst.ptr += 1;
-			}
-			break;
 		case 0x01: /* INC */
 			{
 				Uint8 a = u->wst.dat[u->wst.ptr - 1];
@@ -499,20 +486,6 @@ uxn_eval(Uxn *u, Uint16 vec)
 				}
 #endif
 				u->wst.ptr -= 1;
-			}
-			break;
-		case 0x20: /* LIT2 */
-		case 0xa0: /* LIT2k */
-			{
-				u->wst.dat[u->wst.ptr] = peek8(u->ram.dat, u->ram.ptr++);
-				u->wst.dat[u->wst.ptr + 1] = peek8(u->ram.dat, u->ram.ptr++);
-#ifndef NO_STACK_CHECKS
-				if(__builtin_expect(u->wst.ptr > 253, 0)) {
-					u->wst.error = 2;
-					goto error;
-				}
-#endif
-				u->wst.ptr += 2;
 			}
 			break;
 		case 0x21: /* INC2 */
@@ -986,19 +959,6 @@ uxn_eval(Uxn *u, Uint16 vec)
 				u->wst.ptr -= 1;
 			}
 			break;
-		case 0x40: /* LITr */
-		case 0xc0: /* LITkr */
-			{
-				u->rst.dat[u->rst.ptr] = peek8(u->ram.dat, u->ram.ptr++);
-#ifndef NO_STACK_CHECKS
-				if(__builtin_expect(u->rst.ptr > 254, 0)) {
-					u->rst.error = 2;
-					goto error;
-				}
-#endif
-				u->rst.ptr += 1;
-			}
-			break;
 		case 0x41: /* INCr */
 			{
 				Uint8 a = u->rst.dat[u->rst.ptr - 1];
@@ -1432,20 +1392,6 @@ uxn_eval(Uxn *u, Uint16 vec)
 				}
 #endif
 				u->rst.ptr -= 1;
-			}
-			break;
-		case 0x60: /* LIT2r */
-		case 0xe0: /* LIT2kr */
-			{
-				u->rst.dat[u->rst.ptr] = peek8(u->ram.dat, u->ram.ptr++);
-				u->rst.dat[u->rst.ptr + 1] = peek8(u->ram.dat, u->ram.ptr++);
-#ifndef NO_STACK_CHECKS
-				if(__builtin_expect(u->rst.ptr > 253, 0)) {
-					u->rst.error = 2;
-					goto error;
-				}
-#endif
-				u->rst.ptr += 2;
 			}
 			break;
 		case 0x61: /* INC2r */
@@ -1917,6 +1863,18 @@ uxn_eval(Uxn *u, Uint16 vec)
 				}
 #endif
 				u->rst.ptr -= 1;
+			}
+			break;
+		case 0x80: /* LIT */
+			{
+				u->wst.dat[u->wst.ptr] = peek8(u->ram.dat, u->ram.ptr++);
+#ifndef NO_STACK_CHECKS
+				if(__builtin_expect(u->wst.ptr > 254, 0)) {
+					u->wst.error = 2;
+					goto error;
+				}
+#endif
+				u->wst.ptr += 1;
 			}
 			break;
 		case 0x81: /* INCk */
@@ -2428,6 +2386,20 @@ uxn_eval(Uxn *u, Uint16 vec)
 				}
 #endif
 				u->wst.ptr += 1;
+			}
+			break;
+		case 0xa0: /* LIT2 */
+		case 0x20: /* LIT2_deprecated */
+			{
+				u->wst.dat[u->wst.ptr] = peek8(u->ram.dat, u->ram.ptr++);
+				u->wst.dat[u->wst.ptr + 1] = peek8(u->ram.dat, u->ram.ptr++);
+#ifndef NO_STACK_CHECKS
+				if(__builtin_expect(u->wst.ptr > 253, 0)) {
+					u->wst.error = 2;
+					goto error;
+				}
+#endif
+				u->wst.ptr += 2;
 			}
 			break;
 		case 0xa1: /* INC2k */
@@ -2966,6 +2938,19 @@ uxn_eval(Uxn *u, Uint16 vec)
 				u->wst.ptr += 2;
 			}
 			break;
+		case 0xc0: /* LITr */
+		case 0x40: /* LITr_deprecated */
+			{
+				u->rst.dat[u->rst.ptr] = peek8(u->ram.dat, u->ram.ptr++);
+#ifndef NO_STACK_CHECKS
+				if(__builtin_expect(u->rst.ptr > 254, 0)) {
+					u->rst.error = 2;
+					goto error;
+				}
+#endif
+				u->rst.ptr += 1;
+			}
+			break;
 		case 0xc1: /* INCkr */
 			{
 				Uint8 a = u->rst.dat[u->rst.ptr - 1];
@@ -3475,6 +3460,20 @@ uxn_eval(Uxn *u, Uint16 vec)
 				}
 #endif
 				u->rst.ptr += 1;
+			}
+			break;
+		case 0xe0: /* LIT2r */
+		case 0x60: /* LIT2r_deprecated */
+			{
+				u->rst.dat[u->rst.ptr] = peek8(u->ram.dat, u->ram.ptr++);
+				u->rst.dat[u->rst.ptr + 1] = peek8(u->ram.dat, u->ram.ptr++);
+#ifndef NO_STACK_CHECKS
+				if(__builtin_expect(u->rst.ptr > 253, 0)) {
+					u->rst.error = 2;
+					goto error;
+				}
+#endif
+				u->rst.ptr += 2;
 			}
 			break;
 		case 0xe1: /* INC2kr */
