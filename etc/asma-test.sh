@@ -43,6 +43,9 @@ EOD
 expect_failure 'Invalid hexadecimal: #defg' <<'EOD'
 |1000 #defg
 EOD
+expect_failure 'Invalid hexadecimal: #' <<'EOD'
+|1000 #
+EOD
 expect_failure 'Address not in zero page: .hello' <<'EOD'
 |1000 @hello
 	.hello

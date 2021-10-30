@@ -376,6 +376,7 @@ include projects/library/file-read-chunks.tal
                          OR 00 otherwise )
 	;asma/token LDA2 DUP2 ,strlen JSR ( token* length^ )
 	DUP2 #0004 GTH2 ,&fail2 JCN
+	ORAk #00 EQU ,&fail2 JCN
 	&resume
 	#0002 GTH2 ROT ROT
 	LIT2r 0000
