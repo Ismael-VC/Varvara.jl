@@ -115,7 +115,7 @@ function uxn_eval!(c::CPU, vec::UInt16, fault_handler::Function)::Int
     #= Stack =#
     LIT(c::CPU)::Void = pull(c)
     INC(c::CPU)::Void = (a = pop(c.src); push(c.src, a + 0x1))
-    POP(c::CPU) = pop(c.src)
+    POP(c::CPU)::Void = pop(c.src)
     DUP(c::CPU)::Void = (a = pop(c.src); push(c.src, a); push(c.src, a))
     NIP(c::CPU)::Void = (a = pop(c.src); pop(c.src); push(c.src, a))
     SWP(c::CPU)::Void = (a = pop(c.src); b = pop(c.src); push(c.src, a); push(c.src, b))
@@ -142,7 +142,7 @@ function uxn_eval!(c::CPU, vec::UInt16, fault_handler::Function)::Int
     LDA(c::CPU)::Void = (a = pop16(c.src); push(c.src, peek(c.ram.dat, a)))
     STA(c::CPU)::Void = (a = pop16(c.src); b = pop(c.src); poke(c.ram.dat, a, b))
     DEI(c::CPU)::Void = (a = pop8(c.src); push(c.src, devr(c.devs[a >> 4], a)))
-    DEO(c::CPU)::Bool = (a = pop8(c.src); b = pop(c.src); (!devw(c.devs[a >> 4], a, b) && true))
+    DEO(c::CPU)::Void = (a = pop8(c.src); b = pop(c.src); (!devw(c.devs[a >> 4], a, b); return))
 
     #= Arithmetic =#
     ADD(c::CPU)::Void = (a = pop(c.src); b = pop(c.src); push(c.src, b + a))

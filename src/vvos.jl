@@ -42,10 +42,11 @@ end
 
 function compute!(c::CPU)::Nothing
   try
-    dev_console = c.devs[1]
-    while iszero(c.devs[0].dat[0xf]) && dev_console.dat[0x2] > 0
+    dev_system = c.devs[0].dat
+    dev_console = c.devs[1].dat
+    while !bool(dev_system[0xf]) && dev_console[0x2] > 0
       vec = peek16(dev_console.dat, 0)
-      iszero(vec) && (vec = c.ram.ptr)  # continue after last BRK
+      !bool(vec) && (vec = c.ram.ptr)  # continue after last BRK
       uxn_eval!(c, vec)
     end
   catch e
@@ -83,8 +84,8 @@ end
 function boot!(c)::CPU
   loaded = false
 
-  #= system   =# dev_system = Device(c, 0x0, system_talk!)
-  #= console  =# dev_console = Device(c, 0x1, console_talk)
+  #= system   =# Device(c, 0x0, system_talk!)
+  #= console  =# Device(c, 0x1, console_talk)
   #= empty    =# Device(c, 0x2)
   #= empty    =# Device(c, 0x3)
   #= empty    =# Device(c, 0x4)
@@ -93,8 +94,8 @@ function boot!(c)::CPU
   #= empty    =# Device(c, 0x7)
   #= empty    =# Device(c, 0x8)
   #= empty    =# Device(c, 0x9)
-  #= file     =# dev_file = Device(c, 0xa, file_talk!)
-  #= datetime =# dev_datetime = Device(c, 0xb, datetime_talk!)
+  #= file     =# Device(c, 0xa, file_talk!)
+  #= datetime =# Device(c, 0xb, datetime_talk!)
   #= empty    =# Device(c, 0xc)
   #= empty    =# Device(c, 0xd)
   #= empty    =# Device(c, 0xe)

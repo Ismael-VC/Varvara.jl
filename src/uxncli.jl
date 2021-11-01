@@ -59,14 +59,14 @@ $(join([@sprintf("%02x", i) for i in m.dat[240:255]], ' '))
 """)
 
 show(io::IO, d::Device)::Nothing = print(io, """
-$(startswith(string(d.talk), '#') ? "[ ? ]" : titlecase(split(string(d.talk), '_')[1])) Device: $(@sprintf("%02x", d.id))
+$(startswith(string(d.talk), '#') ? "Empty" : titlecase(split(string(d.talk), '_')[1]))\tDevice:\t$(@sprintf("%02x", d.id))
 """)
 
 show(io::IO, c::CPU)::Nothing = print(io, """
 CPU: $(c.uuid)
 ram.ptr: $(@sprintf("%04x", c.ram.ptr))\tdevs: $(sum(isassigned(c.devs, i) for i in 0:15))
 
-$(join(Device[c.devs[i] for i in 0:15 if isassigned(c.devs, i)], '\n'))
+$(join(Device[c.devs[i] for i in 0:15 if isassigned(c.devs, i)], ""))
 wst:
 ptr: $(@sprintf("%04x", c.wst.ptr))\tkptr: $(@sprintf("%04x", c.wst.kptr))\terror: $(@sprintf("%04x", c.wst.error))
 $(join([@sprintf("%02x", i) for i in c.wst.dat[0:15]], ' '))
@@ -101,17 +101,10 @@ function uxn_halt(c::CPU, err::UInt8, name::AbstractString, id::Int)::Exception
   throw(UXN_ERRORS[error](@sprintf("%s#%04x, at 0x%04x", id, c.ram.ptr)))
 end
 
-
-
-
-
-
-
 end  # module
 
-
 if abspath(PROGRAM_FILE) == @__FILE__
-    using .VarvaraCLI: main
+    using .UxnCLI: main
 
     main()
 end

@@ -2,18 +2,18 @@ module Varvara
 
 using Reexport: @reexport
 
-include("varvara-utils.jl")
+include("vvutils.jl")
 include("uxn.jl")
-include("varvara-os.jl")
-include("uxn-cli.jl")
-include("uxn-dbg.jl")
-include("uxn-dbgg.jl")
-include("uxn-repl.jl")
+include("vvos.jl")
+include("uxncli.jl")
+include("uxndbg.jl")
+include("uxngdbg.jl")
+include("uxnrepl.jl")
 include("devices/apu.jl")
 include("devices/ppu.jl")
-include("uxn-emu.jl")
-include("uxn-asm.jl")
-include("varvara-docs.jl")
+include("uxnemu.jl")
+include("uxnasm.jl")
+include("vvdocs.jl")
 
 @reexport using .UxnUtils
 @reexport using .Uxn
