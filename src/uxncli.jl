@@ -10,7 +10,7 @@ THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
 WITH REGARD TO THIS SOFTWARE.
 =#
 
-module VarvaraCLI
+module UxnCLI
 
 using Dates
 using Printf: @sprintf
