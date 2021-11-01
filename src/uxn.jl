@@ -11,12 +11,15 @@ WITH REGARD TO THIS SOFTWARE.
 
 module Uxn
 
+import UUIDs
+using  UUIDs: UUID, uuid4
+
 import Match
 
 using        Match: @match
 using OffsetArrays: OffsetVector
 
-using ..Utils
+using ..UxnUtils: bool, high_byte, low_byte, concat_bytes
 
 export  CPU,  AbstractCPU,  Stack,  Memory,  Device,    uxn_eval!, OVector,
   Void, PAGE_PROGRAM, MODE_SHORT,  MODE_RETURN, MODE_KEEP, reboot!,   bool,
@@ -28,11 +31,11 @@ export  CPU,  AbstractCPU,  Stack,  Memory,  Device,    uxn_eval!, OVector,
   LDZ, STZ, LDR, STR, LDA, STA, DEI, DEO, ADD, SUB, MUL, DIV, AND, ORA, EOR, SFT
 
 const PAGE_PROGRAM = 0x0100
-const MODE_SHORT   = 0x20
-const MODE_RETURN  = 0x40
-const MODE_KEEP    = 0x80
-const Void         = Nothing
-const OVector{T}   = OffsetVector{T, Vector{T}} where {T}
+const   MODE_SHORT = 0x20
+const  MODE_RETURN = 0x40
+const    MODE_KEEP = 0x80
+const         Void = Nothing
+const   OVector{T} = OffsetVector{T, Vector{T}} where {T}
 
 OVector{T}(len::Integer) where {T} = OffsetVector(Vector{T}(undef, len), 0:len-1)
 OVector(T::DataType, len::Integer) = OffsetVector(zeros(T, len), 0:len-1)
@@ -48,29 +51,30 @@ end
 
 abstract type AbstractCPU end;
 mutable struct Device{C<:AbstractCPU, F<:Function}
-     c::C;  id::Int           ; vector::UInt16;
+     c::C;  id::UInt8           ; vector::UInt16;
   talk::F; mem::OVector{UInt8};    dat::OVector{UInt8}
 end
 
 mutable struct CPU <: AbstractCPU
-  wst::Stack; rst::Stack;  src::Stack;
-  dst::Stack; ram::Memory; devs::Union{OVector{Device}, Void}
+  uuid::UUID
+   wst::Stack; rst::Stack ;  src::Stack;
+   dst::Stack; ram::Memory; devs::OVector{Device}
 end
 
  Stack()::Stack  = Stack(0, 0, 0, OVector(UInt8, 0xff))
 Memory()::Memory = Memory(0, OVector(UInt16, 0xffff))
-CPU()::CPU = CPU(Stack(), Stack(), Stack(), Stack(), Memory(), OVector{Device}(0x10))
+   CPU()::CPU = CPU(uuid4(), Stack(), Stack(), Stack(), Stack(), Memory(), OVector{Device}(0x10))
 
-(Device(talkfn::F, c::C, id::Int)::Device) where {C<:AbstractCPU, F<:Function} = Device(c, id, talkfn)
+(Device(talkfn::F, c::C, id::UInt8)::Device) where {C<:AbstractCPU, F<:Function} = Device(c, id, talkfn)
 
-function Device(c::C, id::Int, talkfn::F)::Device where {C<:AbstractCPU, F<:Function}
+function Device(c::C, id::UInt8, talkfn::F)::Device where {C<:AbstractCPU, F<:Function}
   d = Device(c, id, 0x000, talkfn, c.ram.dat, OVector{UInt8}(0x10))
   c.devs[id] = d
 
   return d
 end
 
-function Device(c::C, id::Int)::Device where {C<:AbstractCPU}
+function Device(c::C, id::UInt8)::Device where {C<:AbstractCPU}
   Device(c, id) do d::Device, b0::UInt8, w::UInt8
     return true
   end
@@ -96,50 +100,6 @@ devw16(d::Device, a::UInt8, b::UInt16)::Bool = devw8(d, a, b >> 8) && devw8(d, a
 devr16(d::Device, a::UInt8)::UInt16 = (devr8(d, a) << 8) + devr8(d, a + 0x1)
 pull16(c::CPU)::Void = (push16(c.src, peek16(c.ram.dat, c.ram.ptr)); c.ram.ptr += 2; return)
 
-#= Stack =#
-LIT(c::CPU)::Void = pull(u)
-INC(c::CPU)::Void = (a = pop(c.src); push(c.src, a + 0x1))
-POP(c::CPU) = pop(c.src)
-DUP(c::CPU)::Void = (a = pop(c.src); push(c.src, a); push(c.src, a))
-NIP(c::CPU)::Void = (a = pop(c.src); pop(c.src); push(c.src, a))
-SWP(c::CPU)::Void = (a = pop(c.src); b = pop(c.src); push(c.src, a); push(c.src, b))
-OVR(c::CPU)::Void = (a = pop(c.src); b = pop(c.src); push(c.src, b); push(c.src, a); push(c.src, b))
-ROT(c::CPU)::Void = begin
-  a = pop(c.src); b = pop(c.src); c = pop(c.src); push(c.src, b); push(c.src, a); push(c.src, c)
-end
-
-#= Logic =#
-EQU(c::CPU)::Void = (a = pop(c.src); b = pop(c.src); push8(c.src, b == a))
-NEQ(c::CPU)::Void = (a = pop(c.src); b = pop(c.src); push8(c.src, b != a))
-GTH(c::CPU)::Void = (a = pop(c.src); b = pop(c.src); push8(c.src, b > a))
-LTH(c::CPU)::Void = (a = pop(c.src); b = pop(c.src); push8(c.src, b < a))
-JMP(c::CPU)::Void = (a = pop(c.src); warp(u, a))
-JCN(c::CPU)::Void = (a = pop(c.src); (pop8(c.src) && warp(u, a)))
-JSR(c::CPU)::Void = (a = pop(c.src); push16(c.dst, c.ram.ptr); warp(u, a))
-STH(c::CPU)::Void = (a = pop(c.src); push(c.dst, a))
-
-#= Memory =#
-LDZ(c::CPU)::Void = (a = pop8(c.src); push(c.src, peek(c.ram.dat, a)))
-STZ(c::CPU)::Void = (a = pop8(c.src); b = pop(c.src); poke(c.ram.dat, a, b))
-LDR(c::CPU)::Void = (a = pop8(c.src); push(c.src, peek(c.ram.dat, c.ram.ptr + Int8(a))))
-STR(c::CPU)::Void = (a = pop8(c.src); b = pop(c.src); poke(c.ram.dat, c.ram.ptr + Int8(a), b))
-LDA(c::CPU)::Void = (a = pop16(c.src); push(c.src, peek(c.ram.dat, a)))
-STA(c::CPU)::Void = (a = pop16(c.src); b = pop(c.src); poke(c.ram.dat, a, b))
-DEI(c::CPU)::Void = (a = pop8(c.src); push(c.src, devr(c.devs[a >> 4], a)))
-DEO(c::CPU)::Bool = (a = pop8(c.src); b = pop(c.src); (!devw(c.devs[a >> 4], a, b) && true))
-
-#= Arithmetic =#
-ADD(c::CPU)::Void = (a = pop(c.src); b = pop(c.src); push(c.src, b + a))
-SUB(c::CPU)::Void = (a = pop(c.src); b = pop(c.src); push(c.src, b - a))
-MUL(c::CPU)::Void = (a = pop(c.src); b = pop(c.src); push(c.src, b * a))
-DIV(c::CPU)::Void = begin
-  a = pop(c.src); b = pop(c.src); (a == 0 && (c.src.error = 3; a = 1)); push(c.src, b / a)
-end
-AND(c::CPU)::Void = (a = pop(c.src); b = pop(c.src); push(c.src, b & a))
-ORA(c::CPU)::Void = (a = pop(c.src); b = pop(c.src); push(c.src, b | a))
-EOR(c::CPU)::Void = (a = pop(c.src); b = pop(c.src); push(c.src, b ^ a))
-SFT(c::CPU)::Void = (a = pop8(c.src); b = pop(c.src); push(c.src, b >> (a & 0x0f) << ((a & 0xf0) >> 4)))
-
 #= Core =#
 function uxn_eval!(c::CPU, vec::UInt16, fault_handler::Function)::Int
   (!bool(vec) || bool(c.devs[0].dat[0xf])) && return 0
@@ -162,6 +122,50 @@ function uxn_eval!(c::CPU, vec::UInt16, fault_handler::Function)::Int
       push = push8; pop  = pop8;  poke = poke8; peek = peek8
       devw = devw8; devr = devr8; pull = pull8
     end
+
+    #= Stack =#
+    LIT(c::CPU)::Void = pull(c)
+    INC(c::CPU)::Void = (a = pop(c.src); push(c.src, a + 0x1))
+    POP(c::CPU) = pop(c.src)
+    DUP(c::CPU)::Void = (a = pop(c.src); push(c.src, a); push(c.src, a))
+    NIP(c::CPU)::Void = (a = pop(c.src); pop(c.src); push(c.src, a))
+    SWP(c::CPU)::Void = (a = pop(c.src); b = pop(c.src); push(c.src, a); push(c.src, b))
+    OVR(c::CPU)::Void = (a = pop(c.src); b = pop(c.src); push(c.src, b); push(c.src, a); push(c.src, b))
+    ROT(c::CPU)::Void = begin
+      a = pop(c.src); b = pop(c.src); c = pop(c.src); push(c.src, b); push(c.src, a); push(c.src, c)
+    end
+
+    #= Logic =#
+    EQU(c::CPU)::Void = (a = pop(c.src); b = pop(c.src); push8(c.src, b == a))
+    NEQ(c::CPU)::Void = (a = pop(c.src); b = pop(c.src); push8(c.src, b != a))
+    GTH(c::CPU)::Void = (a = pop(c.src); b = pop(c.src); push8(c.src, b > a))
+    LTH(c::CPU)::Void = (a = pop(c.src); b = pop(c.src); push8(c.src, b < a))
+    JMP(c::CPU)::Void = (a = pop(c.src); warp(u, a))
+    JCN(c::CPU)::Void = (a = pop(c.src); (pop8(c.src) && warp(c, a)))
+    JSR(c::CPU)::Void = (a = pop(c.src); push16(c.dst, c.ram.ptr); warp(c, a))
+    STH(c::CPU)::Void = (a = pop(c.src); push(c.dst, a))
+
+    #= Memory =#
+    LDZ(c::CPU)::Void = (a = pop8(c.src); push(c.src, peek(c.ram.dat, a)))
+    STZ(c::CPU)::Void = (a = pop8(c.src); b = pop(c.src); poke(c.ram.dat, a, b))
+    LDR(c::CPU)::Void = (a = pop8(c.src); push(c.src, peek(c.ram.dat, c.ram.ptr + Int8(a))))
+    STR(c::CPU)::Void = (a = pop8(c.src); b = pop(c.src); poke(c.ram.dat, c.ram.ptr + Int8(a), b))
+    LDA(c::CPU)::Void = (a = pop16(c.src); push(c.src, peek(c.ram.dat, a)))
+    STA(c::CPU)::Void = (a = pop16(c.src); b = pop(c.src); poke(c.ram.dat, a, b))
+    DEI(c::CPU)::Void = (a = pop8(c.src); push(c.src, devr(c.devs[a >> 4], a)))
+    DEO(c::CPU)::Bool = (a = pop8(c.src); b = pop(c.src); (!devw(c.devs[a >> 4], a, b) && true))
+
+    #= Arithmetic =#
+    ADD(c::CPU)::Void = (a = pop(c.src); b = pop(c.src); push(c.src, b + a))
+    SUB(c::CPU)::Void = (a = pop(c.src); b = pop(c.src); push(c.src, b - a))
+    MUL(c::CPU)::Void = (a = pop(c.src); b = pop(c.src); push(c.src, b * a))
+    DIV(c::CPU)::Void = begin
+      a = pop(c.src); b = pop(c.src); (a == 0 && (c.src.error = 3; a = 1)); push(c.src, b / a)
+    end
+    AND(c::CPU)::Void = (a = pop(c.src); b = pop(c.src); push(c.src, b & a))
+    ORA(c::CPU)::Void = (a = pop(c.src); b = pop(c.src); push(c.src, b | a))
+    EOR(c::CPU)::Void = (a = pop(c.src); b = pop(c.src); push(c.src, b ^ a))
+    SFT(c::CPU)::Void = (a = pop8(c.src); b = pop(c.src); push(c.src, b >> (a & 0x0f) << ((a & 0xf0) >> 4)))
 
     @match (instr & 0x1f) begin
       #= Stack =#
@@ -190,11 +194,11 @@ end
 
 reboot!(s::Stack) ::Stack  = (s.ptr = s.kptr = s.error = 0x0; fill!(s.dat, 0x0); s)
 reboot!(m::Memory)::Memory = (m.ptr = 0x0; fill!(m.dat, 0x0); m)
-reboot!(d::Device)::Device = (d.addr = d.mem = vector = 0x0; fill!(d.dat, 0x0); d)
-reboot!(c::CPU)::CPU = (foreach([c.wst, c.rst, c.src, c.dst, c.ram, c.devs...], reboot!); u)
+reboot!(d::Device)::Device = (d.addr = d.mem = vector = 0x0; OVector{Device}(0x10); d)
+reboot!(c::CPU)::CPU = (foreach([c.wst, c.rst, c.src, c.dst, c.ram, c.devs...], reboot!); c)
 
-uxn_eval!(fault_handler::Function, c::CPU, vector::UInt16)::Int = uxn_eval!(c, vector, fault_handler)
-uxn_eval!(c::CPU, vector::UInt16)::Int = begin
+uxn_eval!(fault_handler::Function, c::CPU, vector::UInt16)::Bool = uxn_eval!(c, vector, fault_handler)
+uxn_eval!(c::CPU, vector::UInt16)::Bool = begin
   uxn_eval!(c, vector) do c, error, message, instr
     @error "number: $error; message: $message; instruction: $instr"
   end

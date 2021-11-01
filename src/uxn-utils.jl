@@ -1,4 +1,4 @@
-module Utils
+module UxnUtils
 
 export low_byte, high_byte, concat_bytes, bool
 

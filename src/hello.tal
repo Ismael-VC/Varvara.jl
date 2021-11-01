@@ -1,0 +1,22 @@
+( hello.tal )
+( devices )
+|10 @Console [ &vector $2 &read $1 &pad $5 &write $1 &error $1 ]
+
+( macros )
+( print a character to standard output )
+%EMIT { .Console/write DEO } ( character -- )
+( print a newline )
+%NL { #0a EMIT } ( -- )
+
+( main program )
+|0100 LIT 'H EMIT
+      LIT 'e EMIT 
+      LIT 'l EMIT
+      LIT 'l EMIT
+      LIT 'o EMIT
+      #20 EMIT
+      LIT 'U EMIT
+      LIT 'X EMIT
+      LIT 'N EMIT
+      LIT '! EMIT
+      NL
