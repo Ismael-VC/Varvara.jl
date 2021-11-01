@@ -20,7 +20,8 @@ import Match
 
 using  Match: @match
 
-using ..Uxn
+using ..Uxn: CPU, Stack, Memory, Device
+using ..VarvaraOS: boot!, compute!
 
 export dev_console, dev_system, dev_datetime, dev_file,
        inspect, system_talk, nil_talk, datetime_talk,
@@ -95,7 +96,10 @@ $(join([@sprintf("%02x", i) for i in c.dst.dat[32:47]], ' '))
 $(join([@sprintf("%02x", i) for i in c.dst.dat[48:63]], ' '))
 """)
 
-
+function uxn_halt(c::CPU, err::UInt8, name::AbstractString, id::Int)::Exception
+  @error "Halted"
+  throw(UXN_ERRORS[error](@sprintf("%s#%04x, at 0x%04x", id, c.ram.ptr)))
+end
 
 
 

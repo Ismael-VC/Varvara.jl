@@ -10,8 +10,8 @@ using ..UxnUtils: bool
 using ..Uxn: CPU, Memory, Stack, Device, PAGE_PROGRAM, peek16, poke16, uxn_eval!
 
 export load!, system_talk!, console_talk, file_talk!, datetime_talk!, inspect,
- boot!
-
+ boot!, compute!, FILDES, UXN_EXCEPTIONS, UXN_ERRORS, console_input,
+ UxnUnderflowError, UxnOverflowError, UxnZeroDivisionError
 
 #= Generics =#
 const FILDES = Dict(
@@ -20,12 +20,12 @@ const FILDES = Dict(
   2 => stderr
 )
 
-const EXCEPTIONS = (
+const UXN_EXCEPTIONS = (
   :UxnInputError, :UxnLoadError, :UxnInitError, :UnderflowErro,
   :UxnUnderflowError, :UxnOverflowError, :UxnZeroDivisionError
 )
 
-for e in EXCEPTIONS
+for e in UXN_EXCEPTIONS
   @eval struct $e
     msg::String
   end
@@ -33,23 +33,23 @@ end
 
 const UXN_ERRORS = [UxnUnderflowError, UxnOverflowError, UxnZeroDivisionError]
 
-function uxn_halt(c::CPU, err::UInt8, name::AbstractString, id::Int)::Exception
-  @error "Halted"
-  throw(UXN_ERRORS[error](@sprintf("%s#%04x, at 0x%04x", id, c.ram.ptr)))
-end
-
 #= Core =#
 function console_input!(c::CPU, ch::Char)::Int
+  dev_console = c.devs[1]
   dev_console.dat[0x2] = ch
-  return uxn_eval(c, dev_console.vector)
+  return uxn_eval!(c, dev_console.vector)
 end
 
-function run!(c::CPU)::Nothing
-  dev_console = c.devs[1]
-  while iszero(c.devs[0].dat[0xf]) && dev_console.dat[0x2] > 0
-    vec = peek16(dev_console.dat, 0)
-    iszero(vec) && (vec = c.ram.ptr)  # continue after last BRK
-    uxn_eval!(c, vec)
+function compute!(c::CPU)::Nothing
+  try
+    dev_console = c.devs[1]
+    while iszero(c.devs[0].dat[0xf]) && dev_console.dat[0x2] > 0
+      vec = peek16(dev_console.dat, 0)
+      iszero(vec) && (vec = c.ram.ptr)  # continue after last BRK
+      uxn_eval!(c, vec)
+    end
+  catch e
+    e isa InterruptException && @info "bye!"; exit(4)
   end
 end
 
@@ -80,9 +80,8 @@ function load!(c::CPU, filepath::AbstractString)::Bool
   return false
 end
 
-function boot!()::Int
+function boot!(c)::CPU
   loaded = false
-  c = CPU()
 
   #= system   =# dev_system = Device(c, 0x0, system_talk!)
   #= console  =# dev_console = Device(c, 0x1, console_talk)
@@ -101,22 +100,19 @@ function boot!()::Int
   #= empty    =# Device(c, 0xe)
   #= empty    =# Device(c, 0xf)
 
-  for (i, rom) in enumerate(ARGS)
+  for rom in ARGS
     if !loaded
-      !load!(c, rom) && return 0
       loaded = true
+      !load!(c, rom) && (@error("Load: Failed"); return 0)
       !uxn_eval!(c, PAGE_PROGRAM) && (@error("Init: Failed"); return 0)
     else
-      arg = ARGS[i]
-      while bool(arg); console_input!(c, arg); arg += 1; end
+      foreach((ch) -> console_input!(c, ch), rom)
       console_input!(c, '\n')
     end
   end
   loaded || (@error("Input: Missing"); return 0)
 
-  run!(c)
-
-  return 0
+  return c
 end
 
 #= Devices =#
@@ -227,5 +223,7 @@ end  # module
 if abspath(PROGRAM_FILE) == @__FILE__
     using .VarvaraOS: boot!
 
-    boot!()
+    c = CPU()
+    boot!(c)
+    compute!(c)
 end
