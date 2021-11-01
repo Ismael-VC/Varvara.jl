@@ -1,3 +1,13 @@
+( Copyright (c) 2021
+  https://github.com/Ismael-VC/Varvara.jl/blob/main/CONTRIBUTORS.md
+
+  Permission to use, copy, modify, and distribute this software for any
+  purpose with or without fee is hereby granted, provided that the above
+  copyright notice and this permission notice appear in all copies.
+
+  THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+  WITH REGARD TO THIS SOFTWARE. )
+
 ( FizzBuzz: a program that prints the integers from 1 to 100.
 	for multiples of three, print "Fizz"
 	for multiples of five, print "Buzz"

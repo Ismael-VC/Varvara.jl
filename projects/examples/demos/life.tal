@@ -1,3 +1,13 @@
+( Copyright (c) 2021
+  https://github.com/Ismael-VC/Varvara.jl/blob/main/CONTRIBUTORS.md
+
+  Permission to use, copy, modify, and distribute this software for any
+  purpose with or without fee is hereby granted, provided that the above
+  copyright notice and this permission notice appear in all copies.
+
+  THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+  WITH REGARD TO THIS SOFTWARE. )
+
 ( Game Of Life
 	Any live cell with fewer than two live neighbours dies, as if by underpopulation.
 	Any live cell with two or three live neighbours lives on to the next generation.
