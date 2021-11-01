@@ -11,9 +11,14 @@ WITH REGARD TO THIS SOFTWARE.
 
 module Uxn
 
-using Match, OffsetArrays, .Utils
+import Match
 
-export  UxnCPU,  AbstractCPU,  Stack,  Memory,  Device,    uxn_eval!, OVector,
+using        Match: @match
+using OffsetArrays: OffsetVector
+
+using ..Utils
+
+export  CPU,  AbstractCPU,  Stack,  Memory,  Device,    uxn_eval!, OVector,
   Void, PAGE_PROGRAM, MODE_SHORT,  MODE_RETURN, MODE_KEEP, reboot!,   bool,
 
   push8,  pop8k, pop8d,  poke8,  peek8,  devw8,  devr8,  pull8,  warp,
@@ -33,8 +38,8 @@ OVector{T}(len::Integer) where {T} = OffsetVector(Vector{T}(undef, len), 0:len-1
 OVector(T::DataType, len::Integer) = OffsetVector(zeros(T, len), 0:len-1)
 
 mutable struct Stack
-  ptr  ::UInt8; kptr::UInt8;
-  error::UInt8; dat ::OVector{UInt8}
+    ptr::UInt8; kptr::UInt8;
+  error::UInt8;  dat::OVector{UInt8}
 end
 
 mutable struct Memory
@@ -43,30 +48,30 @@ end
 
 abstract type AbstractCPU end;
 mutable struct Device{C<:AbstractCPU, F<:Function}
-  cpu ::C;  id::Int;            vector::UInt16;
-  talk::F; mem::OVector{UInt8}; dat   ::OVector{UInt8}
+     c::C;  id::Int           ; vector::UInt16;
+  talk::F; mem::OVector{UInt8};    dat::OVector{UInt8}
 end
 
-mutable struct UxnCPU <: AbstractCPU
+mutable struct CPU <: AbstractCPU
   wst::Stack; rst::Stack;  src::Stack;
-  dst::Stack; ram::Memory; dev::Union{OVector{Device}, Void}
+  dst::Stack; ram::Memory; devs::Union{OVector{Device}, Void}
 end
 
-Stack() ::Stack  = Stack(0, 0, 0, OVector(UInt8, 0xff))
+ Stack()::Stack  = Stack(0, 0, 0, OVector(UInt8, 0xff))
 Memory()::Memory = Memory(0, OVector(UInt16, 0xffff))
-UxnCPU()::UxnCPU = UxnCPU(Stack(), Stack(), Stack(), Stack(), Memory(), OVector{Device}(0x10))
+CPU()::CPU = CPU(Stack(), Stack(), Stack(), Stack(), Memory(), OVector{Device}(0x10))
 
-(Device(talkfn::F, cpu::C, id::Int)::Device) where {C<:AbstractCPU, F<:Function} = Device(cpu, id, talkfn)
+(Device(talkfn::F, c::C, id::Int)::Device) where {C<:AbstractCPU, F<:Function} = Device(c, id, talkfn)
 
-function Device(cpu::C, id::Int, talkfn::F)::Device where {C<:AbstractCPU, F<:Function}
-  d = Device(cpu, id, 0x000, talkfn, cpu.ram.dat, OVector{UInt8}(0x10))
-  cpu.dev[id] = d
+function Device(c::C, id::Int, talkfn::F)::Device where {C<:AbstractCPU, F<:Function}
+  d = Device(c, id, 0x000, talkfn, c.ram.dat, OVector{UInt8}(0x10))
+  c.devs[id] = d
 
   return d
 end
 
-function Device(cpu::C, id::Int)::Device where {C<:AbstractCPU}
-  Device(cpu, id) do d::Device, b0::UInt8, w::UInt8
+function Device(c::C, id::Int)::Device where {C<:AbstractCPU}
+  Device(c, id) do d::Device, b0::UInt8, w::UInt8
     return true
   end
 end
@@ -79,74 +84,74 @@ poke8(m::AbstractVector{UInt8}, a::Integer, b::UInt8)::Void = (m[a] = b; return)
 peek8(m::AbstractVector{UInt8}, a::Integer)::UInt8 = m[a]
 devw8(d::Device, a::UInt8, b::UInt8)::Bool = (d.dat[a & 0xf] = b; d.talk(d, a & 0x0f, true))
 devr8(d::Device, a::UInt8)::UInt8 = (d.talk(d, a & 0x0f, false); return d.dat[a & 0xf])
-warp(cpu::UxnCPU, a::Integer)::Void = (cpu.ram.ptr += a; return)
-pull8(cpu::UxnCPU)::Void = (push8(cpu.src, peek8(cpu.ram.dat, cpu.ram.ptr)); cpu.ram.ptr += 1; return)
+ warp(c::CPU, a::Integer)::Void = (c.ram.ptr += a; return)
+pull8(c::CPU)::Void = (push8(c.src, peek8(c.ram.dat, c.ram.ptr)); c.ram.ptr += 1; return)
 
 #= Short mode =#
 push16(s::Stack, a::UInt16)::Void = (push8(s, high_byte(a)); push8(s, low_byte(a)))
-pop16(s::Stack)::UInt16 = ((a = pop8(s), b = pop8(s)); a + b << 8)
+ pop16(s::Stack)::UInt16 = ((a = pop8(s), b = pop8(s)); a + b << 8)
 poke16(m::AbstractVector{UInt8}, a::Integer, b::UInt16)::Void = (poke8(m, a, b >> 8); poke8(m, a + 0x1, b))
 peek16(m::AbstractVector{UInt8}, a::Integer)::UInt16 = (peek8(m, a) << 8) + peek8(m, a + 0x1)
 devw16(d::Device, a::UInt8, b::UInt16)::Bool = devw8(d, a, b >> 8) && devw8(d, a + 0x1, b)
 devr16(d::Device, a::UInt8)::UInt16 = (devr8(d, a) << 8) + devr8(d, a + 0x1)
-pull16(cpu::UxnCPU)::Void = (push16(cpu.src, peek16(cpu.ram.dat, cpu.ram.ptr)); cpu.ram.ptr += 2; return)
+pull16(c::CPU)::Void = (push16(c.src, peek16(c.ram.dat, c.ram.ptr)); c.ram.ptr += 2; return)
 
 #= Stack =#
-LIT(cpu::UxnCPU)::Void = pull(u)
-INC(cpu::UxnCPU)::Void = (a = pop(cpu.src); push(cpu.src, a + 0x1))
-POP(cpu::UxnCPU) = pop(cpu.src)
-DUP(cpu::UxnCPU)::Void = (a = pop(cpu.src); push(cpu.src, a); push(cpu.src, a))
-NIP(cpu::UxnCPU)::Void = (a = pop(cpu.src); pop(cpu.src); push(cpu.src, a))
-SWP(cpu::UxnCPU)::Void = (a = pop(cpu.src); b = pop(cpu.src); push(cpu.src, a); push(cpu.src, b))
-OVR(cpu::UxnCPU)::Void = (a = pop(cpu.src); b = pop(cpu.src); push(cpu.src, b); push(cpu.src, a); push(cpu.src, b))
-ROT(cpu::UxnCPU)::Void = begin
-  a = pop(cpu.src); b = pop(cpu.src); c = pop(cpu.src); push(cpu.src, b); push(cpu.src, a); push(cpu.src, c)
+LIT(c::CPU)::Void = pull(u)
+INC(c::CPU)::Void = (a = pop(c.src); push(c.src, a + 0x1))
+POP(c::CPU) = pop(c.src)
+DUP(c::CPU)::Void = (a = pop(c.src); push(c.src, a); push(c.src, a))
+NIP(c::CPU)::Void = (a = pop(c.src); pop(c.src); push(c.src, a))
+SWP(c::CPU)::Void = (a = pop(c.src); b = pop(c.src); push(c.src, a); push(c.src, b))
+OVR(c::CPU)::Void = (a = pop(c.src); b = pop(c.src); push(c.src, b); push(c.src, a); push(c.src, b))
+ROT(c::CPU)::Void = begin
+  a = pop(c.src); b = pop(c.src); c = pop(c.src); push(c.src, b); push(c.src, a); push(c.src, c)
 end
 
 #= Logic =#
-EQU(cpu::UxnCPU)::Void = (a = pop(cpu.src); b = pop(cpu.src); push8(cpu.src, b == a))
-NEQ(cpu::UxnCPU)::Void = (a = pop(cpu.src); b = pop(cpu.src); push8(cpu.src, b != a))
-GTH(cpu::UxnCPU)::Void = (a = pop(cpu.src); b = pop(cpu.src); push8(cpu.src, b > a))
-LTH(cpu::UxnCPU)::Void = (a = pop(cpu.src); b = pop(cpu.src); push8(cpu.src, b < a))
-JMP(cpu::UxnCPU)::Void = (a = pop(cpu.src); warp(u, a))
-JCN(cpu::UxnCPU)::Void = (a = pop(cpu.src); (pop8(cpu.src) && warp(u, a)))
-JSR(cpu::UxnCPU)::Void = (a = pop(cpu.src); push16(cpu.dst, cpu.ram.ptr); warp(u, a))
-STH(cpu::UxnCPU)::Void = (a = pop(cpu.src); push(cpu.dst, a))
+EQU(c::CPU)::Void = (a = pop(c.src); b = pop(c.src); push8(c.src, b == a))
+NEQ(c::CPU)::Void = (a = pop(c.src); b = pop(c.src); push8(c.src, b != a))
+GTH(c::CPU)::Void = (a = pop(c.src); b = pop(c.src); push8(c.src, b > a))
+LTH(c::CPU)::Void = (a = pop(c.src); b = pop(c.src); push8(c.src, b < a))
+JMP(c::CPU)::Void = (a = pop(c.src); warp(u, a))
+JCN(c::CPU)::Void = (a = pop(c.src); (pop8(c.src) && warp(u, a)))
+JSR(c::CPU)::Void = (a = pop(c.src); push16(c.dst, c.ram.ptr); warp(u, a))
+STH(c::CPU)::Void = (a = pop(c.src); push(c.dst, a))
 
 #= Memory =#
-LDZ(cpu::UxnCPU)::Void = (a = pop8(cpu.src); push(cpu.src, peek(cpu.ram.dat, a)))
-STZ(cpu::UxnCPU)::Void = (a = pop8(cpu.src); b = pop(cpu.src); poke(cpu.ram.dat, a, b))
-LDR(cpu::UxnCPU)::Void = (a = pop8(cpu.src); push(cpu.src, peek(cpu.ram.dat, cpu.ram.ptr + Int8(a))))
-STR(cpu::UxnCPU)::Void = (a = pop8(cpu.src); b = pop(cpu.src); poke(cpu.ram.dat, cpu.ram.ptr + Int8(a), b))
-LDA(cpu::UxnCPU)::Void = (a = pop16(cpu.src); push(cpu.src, peek(cpu.ram.dat, a)))
-STA(cpu::UxnCPU)::Void = (a = pop16(cpu.src); b = pop(cpu.src); poke(cpu.ram.dat, a, b))
-DEI(cpu::UxnCPU)::Void = (a = pop8(cpu.src); push(cpu.src, devr(cpu.dev[a >> 4], a)))
-DEO(cpu::UxnCPU)::Bool = (a = pop8(cpu.src); b = pop(cpu.src); (!devw(cpu.dev[a >> 4], a, b) && true))
+LDZ(c::CPU)::Void = (a = pop8(c.src); push(c.src, peek(c.ram.dat, a)))
+STZ(c::CPU)::Void = (a = pop8(c.src); b = pop(c.src); poke(c.ram.dat, a, b))
+LDR(c::CPU)::Void = (a = pop8(c.src); push(c.src, peek(c.ram.dat, c.ram.ptr + Int8(a))))
+STR(c::CPU)::Void = (a = pop8(c.src); b = pop(c.src); poke(c.ram.dat, c.ram.ptr + Int8(a), b))
+LDA(c::CPU)::Void = (a = pop16(c.src); push(c.src, peek(c.ram.dat, a)))
+STA(c::CPU)::Void = (a = pop16(c.src); b = pop(c.src); poke(c.ram.dat, a, b))
+DEI(c::CPU)::Void = (a = pop8(c.src); push(c.src, devr(c.devs[a >> 4], a)))
+DEO(c::CPU)::Bool = (a = pop8(c.src); b = pop(c.src); (!devw(c.devs[a >> 4], a, b) && true))
 
 #= Arithmetic =#
-ADD(cpu::UxnCPU)::Void = (a = pop(cpu.src); b = pop(cpu.src); push(cpu.src, b + a))
-SUB(cpu::UxnCPU)::Void = (a = pop(cpu.src); b = pop(cpu.src); push(cpu.src, b - a))
-MUL(cpu::UxnCPU)::Void = (a = pop(cpu.src); b = pop(cpu.src); push(cpu.src, b * a))
-DIV(cpu::UxnCPU)::Void = begin
-  a = pop(cpu.src); b = pop(cpu.src); (a == 0 && (cpu.src.error = 3; a = 1)); push(cpu.src, b / a)
+ADD(c::CPU)::Void = (a = pop(c.src); b = pop(c.src); push(c.src, b + a))
+SUB(c::CPU)::Void = (a = pop(c.src); b = pop(c.src); push(c.src, b - a))
+MUL(c::CPU)::Void = (a = pop(c.src); b = pop(c.src); push(c.src, b * a))
+DIV(c::CPU)::Void = begin
+  a = pop(c.src); b = pop(c.src); (a == 0 && (c.src.error = 3; a = 1)); push(c.src, b / a)
 end
-AND(cpu::UxnCPU)::Void = (a = pop(cpu.src); b = pop(cpu.src); push(cpu.src, b & a))
-ORA(cpu::UxnCPU)::Void = (a = pop(cpu.src); b = pop(cpu.src); push(cpu.src, b | a))
-EOR(cpu::UxnCPU)::Void = (a = pop(cpu.src); b = pop(cpu.src); push(cpu.src, b ^ a))
-SFT(cpu::UxnCPU)::Void = (a = pop8(cpu.src); b = pop(cpu.src); push(cpu.src, b >> (a & 0x0f) << ((a & 0xf0) >> 4)))
+AND(c::CPU)::Void = (a = pop(c.src); b = pop(c.src); push(c.src, b & a))
+ORA(c::CPU)::Void = (a = pop(c.src); b = pop(c.src); push(c.src, b | a))
+EOR(c::CPU)::Void = (a = pop(c.src); b = pop(c.src); push(c.src, b ^ a))
+SFT(c::CPU)::Void = (a = pop8(c.src); b = pop(c.src); push(c.src, b >> (a & 0x0f) << ((a & 0xf0) >> 4)))
 
 #= Core =#
-function uxn_eval!(cpu::UxnCPU, vec::UInt16, fault_handler::Function)::Int
-  (!bool(vec) || bool(cpu.dev[0].dat[0xf])) && return 0
-  cpu.ram.ptr = vec; cpu.wst.ptr > 0xf8 && (cpu.wst.ptr = 0xf8)
+function uxn_eval!(c::CPU, vec::UInt16, fault_handler::Function)::Int
+  (!bool(vec) || bool(c.devs[0].dat[0xf])) && return 0
+  c.ram.ptr = vec; c.wst.ptr > 0xf8 && (c.wst.ptr = 0xf8)
 
-  while (instr = cpu.ram.dat[cpu.ram.ptr]; cpu.ram.ptr += 1; bool(instr))
+  while (instr = c.ram.dat[c.ram.ptr]; c.ram.ptr += 1; bool(instr))
     #= Return mode =#
-    bool(instr & MODE_RETURN) ? (cpu.src ,cpu.dst = cpu.rst, cpu.wst) :
-                                (cpu.src ,cpu.dst = cpu.wst, cpu.rst)
+    bool(instr & MODE_RETURN) ? (c.src = c.rst; c.dst = c.wst) :
+                                (c.src = c.wst;   c.dst = c.rst)
 
     #= Keep mode =#
-    pop8 = bool(instr & MODE_KEEP) ? (cpu.src.kptr = cpu.src.ptr; pop8k) : pop8d
+    pop8 = bool(instr & MODE_KEEP) ? (c.src.kptr = c.src.ptr; pop8k) : pop8d
 
     #= Short mode =#
     if bool(instr & MODE_SHORT)
@@ -160,24 +165,24 @@ function uxn_eval!(cpu::UxnCPU, vec::UInt16, fault_handler::Function)::Int
 
     @match (instr & 0x1f) begin
       #= Stack =#
-      0x00 => LIT(u); 0x01 => INC(u); 0x02 => POP(u); 0x03 => DUP(u)
-      0x04 => NIP(u); 0x05 => SWP(u); 0x06 => OVR(u); 0x07 => ROT(u)
+      0x00 => LIT(c); 0x01 => INC(c); 0x02 => POP(c); 0x03 => DUP(c)
+      0x04 => NIP(c); 0x05 => SWP(c); 0x06 => OVR(c); 0x07 => ROT(c)
 
       #= Logic =#
-      0x08 => EQU(u); 0x09 => NEQ(u); 0x0a => GTH(u); 0x0b => LTH(u)
-      0x0c => JMP(u); 0x0d => JCN(u); 0x0e => JSR(u); 0x0f => STH(u)
+      0x08 => EQU(c); 0x09 => NEQ(c); 0x0a => GTH(c); 0x0b => LTH(c)
+      0x0c => JMP(c); 0x0d => JCN(c); 0x0e => JSR(c); 0x0f => STH(c)
 
       #= Memory =#
-      0x10 => LDZ(u); 0x11 => STZ(u); 0x12 => LDR(u); 0x13 => STR(u)
-      0x14 => LDA(u); 0x15 => STA(u); 0x16 => DEI(u); 0x17 => DEO(u)
+      0x10 => LDZ(c); 0x11 => STZ(c); 0x12 => LDR(c); 0x13 => STR(c)
+      0x14 => LDA(c); 0x15 => STA(c); 0x16 => DEI(c); 0x17 => DEO(c)
 
       #= Arithmetic =#
-      0x18 => ADD(u); 0x19 => SUB(u); 0x1a => MUL(u); 0x1b => DIV(u)
-      0x1c => AND(u); 0x1d => ORA(u); 0x1e => EOR(u); 0x1f => SFT(u)
+      0x18 => ADD(c); 0x19 => SUB(c); 0x1a => MUL(c); 0x1b => DIV(c)
+      0x1c => AND(c); 0x1d => ORA(c); 0x1e => EOR(c); 0x1f => SFT(c)
     end
 
-    bool(cpu.wst.error) && return fault_handler(u, cpu.wst.error, "Working-stack", instr)
-    bool(cpu.rst.error) && return fault_handler(u, cpu.rst.error, "Return-stack", instr)
+    bool(c.wst.error) && return fault_handler(c, c.wst.error, "Working-stack", instr)
+    bool(c.rst.error) && return fault_handler(c, c.rst.error, "Return-stack", instr)
   end
 
   return 1
@@ -186,11 +191,11 @@ end
 reboot!(s::Stack) ::Stack  = (s.ptr = s.kptr = s.error = 0x0; fill!(s.dat, 0x0); s)
 reboot!(m::Memory)::Memory = (m.ptr = 0x0; fill!(m.dat, 0x0); m)
 reboot!(d::Device)::Device = (d.addr = d.mem = vector = 0x0; fill!(d.dat, 0x0); d)
-reboot!(c::UxnCPU)::UxnCPU = (foreach([c.wst, c.rst, c.src, c.dst, c.ram, c.dev...], reboot!); u)
+reboot!(c::CPU)::CPU = (foreach([c.wst, c.rst, c.src, c.dst, c.ram, c.devs...], reboot!); u)
 
-uxn_eval!(fault_handler::Function, cpu::UxnCPU, vector::UInt16)::Int = uxn_eval!(cpu, vector, fault_handler)
-uxn_eval!(cpu::UxnCPU, vector::UInt16)::Int = begin
-  uxn_eval!(cpu, vector) do cpu, error, message, instr
+uxn_eval!(fault_handler::Function, c::CPU, vector::UInt16)::Int = uxn_eval!(c, vector, fault_handler)
+uxn_eval!(c::CPU, vector::UInt16)::Int = begin
+  uxn_eval!(c, vector) do c, error, message, instr
     @error "number: $error; message: $message; instruction: $instr"
   end
 end
