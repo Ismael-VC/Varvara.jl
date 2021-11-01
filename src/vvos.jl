@@ -45,10 +45,11 @@ function console_input!(c::CPU, ch::Char)::Int
 end
 
 function run!(c::CPU)::Nothing
-  while iszero(c.devs[0].dat[0xf]) && read(0, dev_console.dat[0x2], 1) > 0
+  dev_console = c.devs[1]
+  while iszero(c.devs[0].dat[0xf]) && dev_console.dat[0x2] > 0
     vec = peek16(dev_console.dat, 0)
     iszero(vec) && (vec = c.ram.ptr)  # continue after last BRK
-    uxn_eval(c, vec)
+    uxn_eval!(c, vec)
   end
 end
 
@@ -100,16 +101,14 @@ function boot!()::Int
   #= empty    =# Device(c, 0xe)
   #= empty    =# Device(c, 0xf)
 
-  @show ARGS
-  for rom in ARGS
-    @show rom
+  for (i, rom) in enumerate(ARGS)
     if !loaded
       !load!(c, rom) && return 0
-      !uxn_eval!(c, PAGE_PROGRAM)
-        (@error("Init: Failed"); return 0)
+      loaded = true
+      !uxn_eval!(c, PAGE_PROGRAM) && (@error("Init: Failed"); return 0)
     else
-      arg = argv[i]
-      while bool(p); console_input!(c, p); p += 1; end
+      arg = ARGS[i]
+      while bool(arg); console_input!(c, arg); arg += 1; end
       console_input!(c, '\n')
     end
   end
