@@ -1,6 +1,5 @@
 #=
-Copyright (c) 2021 Devine Lu Linvega
-Copyright (c) 2021 Ismael Venegas Castelló
+Copyright (c) 2021 Devine Lu Linvega, Ismael Venegas Castelló
 
 Permission to use, copy, modify, and distribute this software for any
 purpose with or without fee is hereby granted, provided that the above
@@ -11,6 +10,69 @@ WITH REGARD TO THIS SOFTWARE.
 =#
 
 module UxnCLI
+
+import Base.show
+
+using .Uxn
+
+show(io::IO, s::Stack)::Nothing = print(io, """
+Stack:\tptr: $(@sprintf("%04x", s.ptr))\tkptr: $(@sprintf("%04x", s.kptr))\terror: $(@sprintf("%04x", s.error))
+$(join([@sprintf("%02x", i) for i in s.dat[0:15]], " "))
+$(join([@sprintf("%02x", i) for i in s.dat[16:31]], " "))
+$(join([@sprintf("%02x", i) for i in s.dat[32:47]], " "))
+$(join([@sprintf("%02x", i) for i in s.dat[48:63]], " "))
+""")
+
+show(io::IO, m::Memory)::Nothing = print(io, """
+Memory:\tptr: $(@sprintf("%04x", m.ptr))
+$(join([@sprintf("%02x", i) for i in m.dat[0:15]], " "))
+$(join([@sprintf("%02x", i) for i in m.dat[16:31]], " "))
+$(join([@sprintf("%02x", i) for i in m.dat[32:47]], " "))
+$(join([@sprintf("%02x", i) for i in m.dat[48:63]], " "))
+
+$(join([@sprintf("%02x", i) for i in m.dat[64:79]], " "))
+$(join([@sprintf("%02x", i) for i in m.dat[78:95]], " "))
+$(join([@sprintf("%02x", i) for i in m.dat[94:111]], " "))
+$(join([@sprintf("%02x", i) for i in m.dat[112:127]], " "))
+
+$(join([@sprintf("%02x", i) for i in m.dat[128:143]], " "))
+$(join([@sprintf("%02x", i) for i in m.dat[142:159]], " "))
+$(join([@sprintf("%02x", i) for i in m.dat[158:175]], " "))
+$(join([@sprintf("%02x", i) for i in m.dat[174:191]], " "))
+
+$(join([@sprintf("%02x", i) for i in m.dat[190:207]], " "))
+$(join([@sprintf("%02x", i) for i in m.dat[206:223]], " "))
+$(join([@sprintf("%02x", i) for i in m.dat[224:239]], " "))
+$(join([@sprintf("%02x", i) for i in m.dat[240:255]], " "))
+""")
+
+show(io::IO, c::UxnCPU)::Nothing = print(io, """
+UxnCPU ID: $(@sprintf("0x%x", hash(u)))\tram.ptr: $(@sprintf("%04x", u.ram.ptr))\tdetected devices: $(sum(isdefined(u.dev.parent, i) for i in 1:16))
+
+wst:\tptr: $(@sprintf("%04x", c.wst.ptr))\tkptr: $(@sprintf("%04x", c.wst.kptr))\terror: $(@sprintf("%04x", c.wst.error))
+$(join([@sprintf("%02x", i) for i in u.wst.dat[0:15]], " "))
+$(join([@sprintf("%02x", i) for i in u.wst.dat[16:31]], " "))
+$(join([@sprintf("%02x", i) for i in u.wst.dat[32:47]], " "))
+$(join([@sprintf("%02x", i) for i in u.wst.dat[48:63]], " "))
+
+rst:\tptr: $(@sprintf("%04x", c.rst.ptr))\tkptr: $(@sprintf("%04x", c.rst.kptr))\terror: $(@sprintf("%04x", c.rst.error))
+$(join([@sprintf("%02x", i) for i in u.rst.dat[0:15]], " "))
+$(join([@sprintf("%02x", i) for i in u.rst.dat[16:31]], " "))
+$(join([@sprintf("%02x", i) for i in u.rst.dat[32:47]], " "))
+$(join([@sprintf("%02x", i) for i in u.rst.dat[48:63]], " "))
+
+src:\tptr: $(@sprintf("%04x", c.src.ptr))\tkptr: $(@sprintf("%04x", c.src.kptr))\terror: $(@sprintf("%04x", c.src.error))
+$(join([@sprintf("%02x", i) for i in u.src.dat[0:15]], " "))
+$(join([@sprintf("%02x", i) for i in u.src.dat[16:31]], " "))
+$(join([@sprintf("%02x", i) for i in u.src.dat[32:47]], " "))
+$(join([@sprintf("%02x", i) for i in u.src.dat[48:63]], " "))
+
+dst:\tptr: $(@sprintf("%04x", c.dst.ptr))\tkptr: $(@sprintf("%04x", c.dst.kptr))\terror: $(@sprintf("%04x", c.dst.error))
+$(join([@sprintf("%02x", i) for i in u.dst.dat[0:15]], " "))
+$(join([@sprintf("%02x", i) for i in u.dst.dat[16:31]], " "))
+$(join([@sprintf("%02x", i) for i in u.dst.dat[32:47]], " "))
+$(join([@sprintf("%02x", i) for i in u.dst.dat[48:63]], " "))
+""")
 
 using Dates
 using Printf: @sprintf

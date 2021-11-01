@@ -1,3 +1,3 @@
-module Doc
+module Docs
 
 end
