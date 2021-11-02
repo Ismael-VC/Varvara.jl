@@ -61,9 +61,10 @@ ppu_write(Ppu *p, Uint8 layer, Uint16 x, Uint16 y, Uint8 color)
 		Uint8 pix = p->pixels[row];
 		Uint8 mask = ~(0x3 << shift);
 		Uint8 pixnew = (pix & mask) + (color << shift);
-		p->pixels[row] = pixnew;
-		if(pix != pixnew)
+		if(pix != pixnew){
+			p->pixels[row] = pixnew;
 			p->reqdraw = 1;
+		}
 	}
 }
 
