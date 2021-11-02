@@ -70,6 +70,7 @@ BRK
 	( clear ) #00 ;draw-snake JSR2
 	( update ) ;move JSR2
 	( draw ) #02 .snake/dead LDZ + ;draw-snake JSR2
+		#83 ;draw-apple JSR2
 	( score ) .snake/length LDZ #41 ;draw-score JSR2
 	( reset ) #00 .arena/timer STZ
 
@@ -168,7 +169,6 @@ RTN
 		.arena/w LDZ MOD .apple/x STZ
 	.DateTime/hour DEI2 .DateTime/minute DEI2 MUL2 #abcd MUL2 +
 		.arena/h LDZ MOD .apple/y STZ
-	#83 ;draw-apple JSR2
 
 RTN
 
