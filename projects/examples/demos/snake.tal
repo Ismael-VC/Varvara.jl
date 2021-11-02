@@ -70,7 +70,7 @@ BRK
 	( clear ) #00 ;draw-snake JSR2
 	( update ) ;move JSR2
 	( draw ) #02 .snake/dead LDZ + ;draw-snake JSR2
-	( score ) .snake/length LDZ #01 ;draw-score JSR2
+	( score ) .snake/length LDZ #41 ;draw-score JSR2
 	( reset ) #00 .arena/timer STZ
 
 BRK
