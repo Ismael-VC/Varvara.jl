@@ -1,0 +1,194 @@
+( uxnasm projects/examples/demos/snake.tal bin/snake.rom && uxnemu bin/snake.rom )
+
+%+  { ADD } %-   { SUB }              %/   { DIV }  
+%<  { LTH } %>   { GTH }  %=  { EQU } %!   { NEQ } 
+%++ { ADD2 } %-- { SUB2 }              %// { DIV2 } 
+%<< { LTH2 } %>> { GTH2 } %== { EQU2 } %!! { NEQ2 }  
+%2/  { #01 SFT } %2* { #10 SFT }
+%8//  { #03 SFT2 } %8**  { #30 SFT2 }
+%MOD { DIVk MUL SUB }
+%RTN { JMP2r }
+%TOS { #00 SWP }
+%SWP? { #01 JCN SWP }
+%BRK? { #01 JCN BRK }
+
+%DEBUG  { ;print-hex JSR2 #0a .Console/write DEO }
+%DEBUG2 { SWP ;print-hex JSR2 ;print-hex JSR2 #0a .Console/write DEO }
+
+( devices )
+
+|00 @System     [ &vector $2 &wst      $1 &rst    $1 &pad   $4 &r      $2 &g      $2 &b    $2 &debug  $1 &halt $1 ]
+|10 @Console    [ &vector $2 &read     $1 &pad    $5 &write $1 &error  $1 ]
+|20 @Screen     [ &vector $2 &width    $2 &height $2 &pad   $2 &x      $2 &y      $2 &addr $2 &pixel  $1 &sprite $1 ]
+|30 @Audio0     [ &vector $2 &position $2 &output $1 &pad   $3 &adsr   $2 &length $2 &addr $2 &volume $1 &pitch $1 ]
+|80 @Controller [ &vector $2 &button   $1 &key    $1 ]
+|b0 @DateTime   [ &year   $2 &month    $1 &day    $1 &hour  $1 &minute $1 &second $1 &dotw $1 &doty   $2 &isdst $1 ]
+
+( variables )
+
+|0000
+
+( program )
+
+@arena
+	&w $1 &h $1 &timer $1
+@apple
+	&x $1 &y $1
+@snake
+	&direction $1 &length $1 
+	&x $1 &y $1
+	&tail
+
+|0100 ( -> )
+
+	( theme ) 
+	#0f2f .System/r DEO2 
+	#0ff2 .System/g DEO2 
+	#0022 .System/b DEO2
+
+	( vectors )
+	;on-frame .Screen/vector DEO2
+	;on-button .Controller/vector DEO2
+
+	( resize )
+	#00c0 .Screen/width DEO2
+	#0100 .Screen/height DEO2
+
+	.Screen/width DEI2 8// NIP .arena/w STZ
+	.Screen/height DEI2 8// NIP .arena/h STZ
+
+	( put snake )
+	.arena/w LDZ 2/ #01 - .snake/x STZ
+	.arena/h LDZ 2/ #01 - .snake/y STZ
+
+	;add-apple JSR2
+
+BRK
+
+@on-frame ( -> )
+
+	.arena/timer LDZ INC DUP .arena/timer STZ
+		#06 = BRK?
+
+	#00 ;draw-snake JSR2
+	;move JSR2
+	#02 ;draw-snake JSR2
+
+	( reset ) #00 .arena/timer STZ
+
+BRK
+
+@on-button ( -> )
+
+	.Controller/button DEI #04 SFT 
+	DUP #00 = ,&skip JCN
+		DUP .snake/direction STZ
+		&skip
+	POP
+
+BRK
+
+@move ( -- )
+
+	( tail )
+	.snake/x LDZ2 STH2
+	.snake/length LDZ #00
+	&loop
+		DUP 2* .snake/tail + LDZ2 STH2
+		SWP2r
+		DUP 2* .snake/tail + STH2r ROT STZ2
+		INC GTHk ,&loop JCN
+	POP2
+	POP2r
+
+	.snake/direction LDZ
+	DUP #01 ! ,&no-up JCN
+		.snake/y LDZ #01 - 
+			.arena/h LDZ LTHk SWP? POP 
+			.snake/y STZ
+		&no-up
+	DUP #02 ! ,&no-down JCN
+		.snake/y LDZ INC
+			.arena/h LDZ MOD
+			.snake/y STZ
+		&no-down
+	DUP #04 ! ,&no-left JCN
+		.snake/x LDZ #01 - 
+			.arena/w LDZ LTHk SWP? POP 
+			.snake/x STZ
+		&no-left
+	DUP #08 ! ,&no-right JCN
+		.snake/x LDZ INC 
+			.arena/w LDZ MOD
+			.snake/x STZ
+		&no-right
+	POP
+
+	( detect collision )
+	.snake/x LDZ .apple/x LDZ ! ,&no-collision JCN
+	.snake/y LDZ .apple/y LDZ ! ,&no-collision JCN
+		#00 ;draw-apple JSR2
+		.snake/length LDZ INC DUP DEBUG .snake/length STZ
+		;add-apple JSR2
+		;move JSR2
+		&no-collision
+
+RTN
+
+@add-apple ( -- )
+
+	( seed )
+	.DateTime/hour DEI2 .DateTime/minute DEI2 MUL2 #1234 MUL2 +
+		.arena/w LDZ MOD .apple/x STZ
+	.DateTime/hour DEI2 .DateTime/minute DEI2 MUL2 #abcd MUL2 +
+		.arena/h LDZ MOD .apple/y STZ
+
+	#03 ;draw-apple JSR2
+
+RTN
+
+@draw-snake ( color -- )
+
+	.snake/x LDZ TOS 8** .Screen/x DEO2
+	.snake/y LDZ TOS 8** .Screen/y DEO2
+	;snake-icns .Screen/addr DEO2
+	STHk .Screen/sprite DEO
+
+	( draw tail )
+	.snake/length LDZ #00
+	&loop
+		DUP 2* .snake/tail + LDZ TOS 8** .Screen/x DEO2
+		DUP 2* .snake/tail + INC LDZ TOS 8** .Screen/y DEO2
+		STHkr .Screen/sprite DEO
+		INC GTHk ,&loop JCN
+	POP2
+	POPr
+
+RTN
+
+@draw-apple ( color -- )
+		.apple/x LDZ TOS 8** .Screen/x DEO2
+		.apple/y LDZ TOS 8** .Screen/y DEO2
+		;apple-icn .Screen/addr DEO2
+		.Screen/sprite DEO
+	RTN
+
+RTN
+
+@print-hex ( value -- )
+	
+	STHk #04 SFT ,&parse JSR .Console/write DEO
+	STHr #0f AND ,&parse JSR .Console/write DEO
+	RTN
+	&parse ( value -- char )
+		DUP #09 GTH ,&above JCN #30 ADD RTN &above #09 SUB #60 ADD RTN
+
+RTN
+
+( assets )
+
+@snake-icns
+	ffff ffff ffff ffff
+@apple-icn
+	ffff ffff ffff ffff
+
