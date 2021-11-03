@@ -478,7 +478,7 @@ uxn_eval(Uxn *u, Uint16 vec)
 		case 0x1f: /* SFT */
 			{
 				Uint8 a = u->wst.dat[u->wst.ptr - 1], b = u->wst.dat[u->wst.ptr - 2];
-				u->wst.dat[u->wst.ptr - 2] = b >> (a & 0x07) << ((a & 0x70) >> 4);
+				u->wst.dat[u->wst.ptr - 2] = b >> (a & 0x0f) << ((a & 0xf0) >> 4);
 #ifndef NO_STACK_CHECKS
 				if(__builtin_expect(u->wst.ptr < 2, 0)) {
 					u->wst.error = 1;
@@ -1384,7 +1384,7 @@ uxn_eval(Uxn *u, Uint16 vec)
 		case 0x5f: /* SFTr */
 			{
 				Uint8 a = u->rst.dat[u->rst.ptr - 1], b = u->rst.dat[u->rst.ptr - 2];
-				u->rst.dat[u->rst.ptr - 2] = b >> (a & 0x07) << ((a & 0x70) >> 4);
+				u->rst.dat[u->rst.ptr - 2] = b >> (a & 0x0f) << ((a & 0xf0) >> 4);
 #ifndef NO_STACK_CHECKS
 				if(__builtin_expect(u->rst.ptr < 2, 0)) {
 					u->rst.error = 1;
@@ -2374,7 +2374,7 @@ uxn_eval(Uxn *u, Uint16 vec)
 		case 0x9f: /* SFTk */
 			{
 				Uint8 a = u->wst.dat[u->wst.ptr - 1], b = u->wst.dat[u->wst.ptr - 2];
-				u->wst.dat[u->wst.ptr] = b >> (a & 0x07) << ((a & 0x70) >> 4);
+				u->wst.dat[u->wst.ptr] = b >> (a & 0x0f) << ((a & 0xf0) >> 4);
 #ifndef NO_STACK_CHECKS
 				if(__builtin_expect(u->wst.ptr < 2, 0)) {
 					u->wst.error = 1;
@@ -3448,7 +3448,7 @@ uxn_eval(Uxn *u, Uint16 vec)
 		case 0xdf: /* SFTkr */
 			{
 				Uint8 a = u->rst.dat[u->rst.ptr - 1], b = u->rst.dat[u->rst.ptr - 2];
-				u->rst.dat[u->rst.ptr] = b >> (a & 0x07) << ((a & 0x70) >> 4);
+				u->rst.dat[u->rst.ptr] = b >> (a & 0x0f) << ((a & 0xf0) >> 4);
 #ifndef NO_STACK_CHECKS
 				if(__builtin_expect(u->rst.ptr < 2, 0)) {
 					u->rst.error = 1;
