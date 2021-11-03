@@ -46,6 +46,18 @@ EOD
 expect_failure 'Invalid hexadecimal: #' <<'EOD'
 |1000 #
 EOD
+expect_failure 'Invalid hexadecimal: #0' <<'EOD'
+|1000 #0
+EOD
+expect_failure 'Invalid hexadecimal: #000' <<'EOD'
+|1000 #000
+EOD
+expect_failure 'Unrecognised token: 0' <<'EOD'
+|1000 0
+EOD
+expect_failure 'Unrecognised token: 000' <<'EOD'
+|1000 000
+EOD
 expect_failure 'Address not in zero page: .hello' <<'EOD'
 |1000 @hello
 	.hello

@@ -371,13 +371,14 @@ include projects/library/file-read-chunks.tal
 	#57 SUB
 	JMP2r
 
-@asma-parse-hex-string ( -- value* 06 if valid hex and 2 < length <= 4
-                         OR value* 03 if valid hex and length <= 2
-                         OR 00 otherwise )
+@asma-parse-hex-string ( strict -- value* 06 if valid hex and (length == 4 or (length == 3 and not strict))
+                                OR value* 03 if valid hex and (length == 2 or (length == 1 and not strict))
+                                OR 00 otherwise )
+	STH
 	;asma/token LDA2 DUP2 ,strlen JSR ( token* length^ )
+	DUP STHr AND ,&fail2 JCN
 	DUP2 #0004 GTH2 ,&fail2 JCN
 	ORAk #00 EQU ,&fail2 JCN
-	&resume
 	#0002 GTH2 ROT ROT
 	LIT2r 0000
 
@@ -624,7 +625,7 @@ include projects/library/heap.tal
 	( fall through )
 
 @asma-pad-helper ( offset* -- )
-	;asma-parse-hex-string JSR2
+	#00 ;asma-parse-hex-string JSR2
 	,&valid JCN
 
 	;asma-msg-hex ;asma/error STA2
@@ -740,7 +741,7 @@ include projects/library/heap.tal
 	JMP2r
 
 @asma-literal-hex
-	;asma-parse-hex-string JSR2 JMP
+	#01 ;asma-parse-hex-string JSR2 JMP
 	( hex invalid ) ,&invalid JMP
 	( hex byte    ) ,asma-byte-helper JMP
 	( hex short   ) ,asma-short-helper JMP
@@ -766,7 +767,7 @@ include projects/library/heap.tal
 	;asma-write-byte JMP2 ( tail call )
 
 	&not-opcode
-	;asma-parse-hex-string JSR2 JMP
+	#01 ;asma-parse-hex-string JSR2 JMP
 	( hex invalid ) ,&not-hex JMP
 	( hex byte    ) ,asma-byte-helper/raw JMP
 	( hex short   ) ,asma-short-helper/raw JMP
