@@ -19,23 +19,16 @@ static Uint8 blending[5][16] = {
 	{2, 3, 1, 2, 2, 3, 1, 2, 2, 3, 1, 2, 2, 3, 1, 2},
 	{1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0}};
 
-static void
-ppu_clear(Ppu *p)
-{
-	Uint32 row, bound = p->height * p->width / 2;
-	for(row = 0; row < bound; ++row)
-		p->pixels[row] = 0;
-}
-
-Uint8
+void
 ppu_set_size(Ppu *p, Uint16 width, Uint16 height)
 {
-	ppu_clear(p);
+	Uint8 *pixels;
+	if(!(pixels = realloc(p->pixels, width * height / 2)))
+		return;
+	memset(pixels, 0, width * height / 2);
+	p->pixels = pixels;
 	p->width = width;
 	p->height = height;
-	p->pixels = realloc(p->pixels, p->width * p->height * sizeof(Uint8) / 2);
-	ppu_clear(p);
-	return !!p->pixels;
 }
 
 Uint8
