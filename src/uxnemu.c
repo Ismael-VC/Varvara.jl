@@ -569,7 +569,7 @@ main(int argc, char **argv)
 		}
 	}
 	if(!loaded)
-		return error("usage", "uxnemu file.rom");
+		return error("usage", "uxnemu [-s scale] file.rom");
 
 	run(&u);
 	quit();
