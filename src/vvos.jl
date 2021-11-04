@@ -15,14 +15,15 @@ module VarvaraOS
 using Printf: @sprintf
 
 import Match
+import Base: show
 
 using  Match: @match
 
 using ..UxnUtils: bool
-using ..Uxn: CPU, Memory, Stack, Device, PAGE_PROGRAM, peek16, poke16, uxn_eval!
+using ..Uxn: CPU, Memory, Stack, Device, PAGE_PROGRAM, peek16, poke16, uxn_eval
 
-export load!, system_talk!, console_talk, file_talk!, datetime_talk!, inspect,
- boot!, compute!, FILDES, UXN_EXCEPTIONS, UXN_ERRORS, console_input,
+export load!, system_talk, console_talk, file_talk, datetime_talk, inspect,
+ uxn_boot, run!, FILDES, UXN_EXCEPTIONS, UXN_ERRORS, console_input,
  UxnUnderflowError, UxnOverflowError, UxnZeroDivisionError
 
 #= Generics =#
@@ -46,23 +47,27 @@ end
 const UXN_ERRORS = [UxnUnderflowError, UxnOverflowError, UxnZeroDivisionError]
 
 #= Core =#
-function console_input!(c::CPU, ch::Char)::Int
-  dev_console = c.devs[1]
+function console_input(c::CPU, ch::Char)::Int
+  dev_console = c.dev[1]
   dev_console.dat[0x2] = ch
-  return uxn_eval!(c, dev_console.vector)
+  return uxn_eval(c, dev_console.vec)
 end
 
-function compute!(c::CPU)::Nothing
+function run!(c::CPU)::Nothing
   try
-    dev_system = c.devs[0].dat
-    dev_console = c.devs[1].dat
-    while !bool(dev_system[0xf]) && dev_console[0x2] > 0
-      vec = peek16(dev_console.dat, 0)
+    dev_system_data = c.dev[0].dat
+    dev_console_data = c.dev[1].dat
+    while !bool(dev_system_data[0xf]) && read(dev_console_data[0x2]) > 0
+      vec = peek16(dev_console_data, 0)
       !bool(vec) && (vec = c.ram.ptr)  # continue after last BRK
-      uxn_eval!(c, vec)
+      uxn_eval(c, vec)
     end
   catch e
-    e isa InterruptException && @info "bye!"; exit(4)
+    if e isa InterruptException
+      @info "bye!"; return
+    else
+      throw(e)
+    end
   end
 end
 
@@ -77,26 +82,26 @@ function inspect(s::Stack, name::AbstractString)::Nothing
   @info head
 end
 
-function load!(c::CPU, filepath::AbstractString)::Bool
+function load!(c::CPU, filepath::AbstractString)::Int
   begin
     rom = read(filepath)
     used = PAGE_PROGRAM + length(rom) - 1
     free = 65279  # typemax(UInt16) - PAGE_PROGRAM
     @assert free - used > 0
-    @inbounds c.ram.dat[PAGE_PROGRAM:PAGE_PROGRAM + length(rom) - 1] = rom
+    c.ram.dat[PAGE_PROGRAM:PAGE_PROGRAM + length(rom) - 1] = rom
     @info "Loaded $filepath"
 
-    return true
+    return 1
   end
 
   @error("Load: Failed")
-  return false
+  return 0
 end
 
-function boot!(c)::CPU
-  loaded = false
+function uxn_boot(c)::Int
+  loaded = 0
 
-  #= system   =# Device(c, 0x0, system_talk!)
+  #= system   =# Device(c, 0x0, system_talk)
   #= console  =# Device(c, 0x1, console_talk)
   #= empty    =# Device(c, 0x2)
   #= empty    =# Device(c, 0x3)
@@ -106,31 +111,31 @@ function boot!(c)::CPU
   #= empty    =# Device(c, 0x7)
   #= empty    =# Device(c, 0x8)
   #= empty    =# Device(c, 0x9)
-  #= file     =# Device(c, 0xa, file_talk!)
-  #= datetime =# Device(c, 0xb, datetime_talk!)
+  #= file     =# Device(c, 0xa, file_talk)
+  #= datetime =# Device(c, 0xb, datetime_talk)
   #= empty    =# Device(c, 0xc)
   #= empty    =# Device(c, 0xd)
   #= empty    =# Device(c, 0xe)
   #= empty    =# Device(c, 0xf)
 
   for rom in ARGS
-    if !loaded
-      loaded = true
-      !load!(c, rom) && (@error("Load: Failed"); return 0)
-      !uxn_eval!(c, PAGE_PROGRAM) && (@error("Init: Failed"); return 0)
+    if !bool(loaded)
+      loaded = 1
+      !bool(load!(c, rom)) && (@error("Load: Failed"); return 0)
+      !bool(uxn_eval(c, PAGE_PROGRAM)) && (@error("Init: Failed"); return 0)
     else
-      foreach((ch) -> console_input!(c, ch), rom)
-      console_input!(c, '\n')
+      foreach((ch) -> console_input(c, ch), rom)
+      console_input(c, '\n')
     end
   end
-  loaded || (@error("Input: Missing"); return 0)
+  bool(loaded) || (@error("Input: Missing"); return 0)
 
-  return c
+  return 1
 end
 
 #= Devices =#
-function system_talk!(d::Device, b0::UInt8, wr::Bool = false)::Bool
-  if wr  #= read =#
+function system_talk(d::Device, b0::UInt8, w::UInt8)::Int
+  if w  #= read =#
     @match b0 begin
       0x2 => (d.dat[2] = d.c.wst.ptr)
       0x3 => (d.dat[3] = d.c.rst.ptr)
@@ -144,24 +149,24 @@ function system_talk!(d::Device, b0::UInt8, wr::Bool = false)::Bool
         inspect(d.c.wst, "Working-stack")
         inspect(d.c.rst, "Return-stack")
       end
-      0xf => return false
+      0xf => return 0
     end
   end
 
-  return true
+  return 1
 end
 
-function console_talk(d::Device, b0::UInt8, wr::Bool = false)::Bool
+function console_talk(d::Device, b0::UInt8, w::UInt8)::Int
   b0 == 0x1 && (d.vector = peek16(d.dat, 0x0))
-  (wr && b0 > 0x7) && write(FILDES[b0 - 0x7], Char(d.dat[b0]))
+  (bool(w) && b0 > 0x7) && write(FILDES[b0 - 0x7], Char(d.dat[b0]))
 
-  return true
+  return 1
 end
 
-function file_talk!(d::Device, b0::UInt8, wr::Bool = false)::Bool
+function file_talk(d::Device, b0::UInt8, w::UInt8)::Int
   read = b0 == 0xd
 
-  if wr && (read || b0 == 0xf)
+  if w && (read || b0 == 0xf)
     name::Char = Char(d.mem[peek16(d.dat, 0x8)])
     result::UInt16 = 0
     length::UInt16 = peek16(d.dat, 0xa)
@@ -176,7 +181,7 @@ function file_talk!(d::Device, b0::UInt8, wr::Bool = false)::Bool
     poke16(d.dat, 0x2, result)
   end
 
-  return true
+  return 1
 end
 
 struct Ctm
@@ -188,45 +193,44 @@ struct Ctm
   year::Cint
   dayofweek::Cint
   dayofyear::Cint
-  is_dst::Cint
+  isdst::Cint
 end
 
-function datetime_talk!(d::Device, b0::UInt8, wr::Bool = false)::Bool
+function Base.show(io::IO, t::Ctm)
+  print(io,
+    t.year + 1900, "-",
+    lpad(t.month, 2, "0"), "-",
+    lpad(t.dayofmoth, 2, "0"), "T",
+    lpad(t.hour, 2, "0"), ":",
+    lpad(t.minute, 2, "0"), ":",
+    lpad(t.second, 2, "0")
+  )
+end
+
+function datetime_talk(d::Device, b0::UInt8, w::UInt8)::Int
   result = Ref{Int64}(0)
 
-  try
-    localtime = ccall(
-      @static(Sys.iswindows() ? :localtime : (:localtime, "libc.so.6")),
-      Ptr{Int64},
-      (Ptr{Int64},),
-      result
-    )
+  localtime = ccall(
+    @static(Sys.iswindows() ?
+            :localtime :
+           (:localtime, "libc.so.6")),
+    Ptr{Ctm},
+    (Ptr{Int64},),
+    result
+  )
 
-    t = unsafe_load(localtime)
-    t.year += 1900
+  t = unsafe_load(localtime)
+  t.year += 1900
 
-    poke16(d.dat, 0x0, t.year)
-    d.dat[0x2] = t.month
-    d.dat[0x3] = t.dayofmoth
-    d.dat[0x4] = t.hour
-    d.dat[0x5] = t.minute
-    d.dat[0x6] = t.second
-    d.dat[0x7] = t.dayofweek
-    poke16(d.dat, 0x08, t.dayofyear)
-    d.dat[0xa] = t.is_dst
-
-  catch
-    t = now()
-    poke16(d.dat, 0x0, year(t))
-    d.dat[0x2] = month(t)
-    d.dat[0x3] = dayofmoth(t)
-    d.dat[0x4] = hour(t)
-    d.dat[0x5] = minute(t)
-    d.dat[0x6] = second(t)
-    d.dat[0x7] = dayofweek(t)
-    poke16(d.dat, 0x08, dayofyear(t))
-    d.dat[0xa] = reinterpret(UInt8, Int8(-1))
-  end
+  poke16(d.dat, 0x0, t.year)
+  d.dat[0x2] = t.month
+  d.dat[0x3] = t.dayofmoth
+  d.dat[0x4] = t.hour
+  d.dat[0x5] = t.minute
+  d.dat[0x6] = t.second
+  d.dat[0x7] = t.dayofweek
+  poke16(d.dat, 0x08, t.dayofyear)
+  d.dat[0xa] = t.isdst
 
   return true
 end
@@ -234,9 +238,9 @@ end
 end  # module
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    using .VarvaraOS: boot!
+    using .VarvaraOS: uxn_boot
 
     c = CPU()
-    boot!(c)
-    compute!(c)
+    uxn_boot(c)
+    run!(c)
 end

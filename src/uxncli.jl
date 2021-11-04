@@ -22,7 +22,7 @@ import Match
 using  Match: @match
 
 using ..Uxn: CPU, Stack, Memory, Device
-using ..VarvaraOS: boot!, compute!
+using ..VarvaraOS: uxn_boot, run!
 
 export dev_console, dev_system, dev_datetime, dev_file,
        inspect, system_talk, nil_talk, datetime_talk,
@@ -65,9 +65,9 @@ $(startswith(string(d.talk), '#') ? "Empty" : titlecase(split(string(d.talk), '_
 
 show(io::IO, c::CPU)::Nothing = print(io, """
 CPU: $(c.uuid)
-ram.ptr: $(@sprintf("%04x", c.ram.ptr))\tdevs: $(sum(isassigned(c.devs, i) for i in 0:15))
+ram.ptr: $(@sprintf("%04x", c.ram.ptr))\tdevs: $(sum(isassigned(c.dev, i) for i in 0:15))
 
-$(join(Device[c.devs[i] for i in 0:15 if isassigned(c.devs, i)], ""))
+$(join(Device[c.dev[i] for i in 0:15 if isassigned(c.dev, i)], ""))
 wst:
 ptr: $(@sprintf("%04x", c.wst.ptr))\tkptr: $(@sprintf("%04x", c.wst.kptr))\terror: $(@sprintf("%04x", c.wst.error))
 $(join([@sprintf("%02x", i) for i in c.wst.dat[0:15]], ' '))
@@ -97,7 +97,7 @@ $(join([@sprintf("%02x", i) for i in c.dst.dat[32:47]], ' '))
 $(join([@sprintf("%02x", i) for i in c.dst.dat[48:63]], ' '))
 """)
 
-function uxn_halt(c::CPU, err::UInt8, name::AbstractString, id::Int)::Exception
+function uxn_halt(c::CPU, err::UInt8, name::AbstractString, id::Int)::Int
   @error "Halted"
   throw(UXN_ERRORS[error](@sprintf("%s#%04x, at 0x%04x", id, c.ram.ptr)))
 end
