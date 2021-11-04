@@ -22,7 +22,7 @@ using  Match: @match
 using ..UxnUtils: bool
 using ..Uxn: CPU, Memory, Stack, Device, PAGE_PROGRAM, peek16, poke16, uxn_eval
 
-export load!, system_talk, console_talk, file_talk, datetime_talk, inspect,
+export load, system_talk, console_talk, file_talk, datetime_talk, inspect,
  uxn_boot, run!, FILDES, UXN_EXCEPTIONS, UXN_ERRORS, console_input,
  UxnUnderflowError, UxnOverflowError, UxnZeroDivisionError
 
@@ -82,7 +82,7 @@ function inspect(s::Stack, name::AbstractString)::Nothing
   @info head
 end
 
-function load!(c::CPU, filepath::AbstractString)::Int
+function load(c::CPU, filepath::AbstractString)::Int
   begin
     rom = read(filepath)
     used = PAGE_PROGRAM + length(rom) - 1
@@ -121,7 +121,7 @@ function uxn_boot(c)::Int
   for rom in ARGS
     if !bool(loaded)
       loaded = 1
-      !bool(load!(c, rom)) && (@error("Load: Failed"); return 0)
+      !bool(load(c, rom)) && (@error("Load: Failed"); return 0)
       !bool(uxn_eval(c, PAGE_PROGRAM)) && (@error("Init: Failed"); return 0)
     else
       foreach((ch) -> console_input(c, ch), rom)

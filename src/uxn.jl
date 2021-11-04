@@ -160,7 +160,7 @@ function uxn_eval(c::CPU, vec::UInt16, uxn_halt!::Function)::Int
       0x09 => #= NEQ =# (a = pop(c.src); b = pop(c.src); push8(c.src, b != a))
       0x0a => #= GTH =# (a = pop(c.src); b = pop(c.src); push8(c.src, b > a))
       0x0b => #= LTH =# (a = pop(c.src); b = pop(c.src); push8(c.src, b < a))
-      0x0c => #= JMP =# (a = pop(c.src); warp(u, a))
+      0x0c => #= JMP =# (a = pop(c.src); warp(c, a))
       0x0d => #= JCN =# (a = pop(c.src); (pop8(c.src) && warp(c, a)))
       0x0e => #= JSR =# (a = pop(c.src); push16(c.dst, c.ram.ptr); warp(c, a))
       0x0f => #= STH =# (a = pop(c.src); push(c.dst, a))
