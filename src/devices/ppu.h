@@ -29,3 +29,4 @@ void ppu_write(Ppu *p, Uint8 layer, Uint16 x, Uint16 y, Uint8 color);
 void ppu_frame(Ppu *p);
 void ppu_1bpp(Ppu *p, Uint8 layer, Uint16 x, Uint16 y, Uint8 *sprite, Uint8 color, Uint8 flipx, Uint8 flipy);
 void ppu_2bpp(Ppu *p, Uint8 layer, Uint16 x, Uint16 y, Uint8 *sprite, Uint8 color, Uint8 flipx, Uint8 flipy);
+void ppu_debug(Ppu *p, Uint8 *stack, Uint8 wptr, Uint8 rptr, Uint8 *memory);
