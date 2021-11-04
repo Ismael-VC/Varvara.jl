@@ -4028,7 +4028,7 @@ uxn_boot(Uxn *u)
 }
 
 Device *
-uxn_port(Uxn *u, Uint8 id, Uint8 (*deifn)(Device *d, Uint8 b0), void (*deofn)(Device *d, Uint8 b0))
+uxn_port(Uxn *u, Uint8 id, Uint8 (*deifn)(Device *d, Uint8 port), void (*deofn)(Device *d, Uint8 port))
 {
 	Device *d = &u->dev[id];
 	d->addr = id * 0x10;

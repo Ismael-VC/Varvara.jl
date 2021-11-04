@@ -290,51 +290,51 @@ doctrl(SDL_Event *event, int z)
 #pragma mark - Devices
 
 static Uint8
-system_dei(Device *d, Uint8 b0)
+system_dei(Device *d, Uint8 port)
 {
-	switch(b0) {
+	switch(port) {
 	case 0x2: return d->u->wst.ptr;
 	case 0x3: return d->u->rst.ptr;
-	default: return d->dat[b0];
+	default: return d->dat[port];
 	}
 }
 
 static void
-system_deo(Device *d, Uint8 b0)
+system_deo(Device *d, Uint8 port)
 {
-	switch(b0) {
-	case 0x2: d->u->wst.ptr = d->dat[b0]; break;
-	case 0x3: d->u->rst.ptr = d->dat[b0]; break;
+	switch(port) {
+	case 0x2: d->u->wst.ptr = d->dat[port]; break;
+	case 0x3: d->u->rst.ptr = d->dat[port]; break;
 	}
-	if(b0 > 0x7 && b0 < 0xe)
+	if(port > 0x7 && port < 0xe)
 		set_palette(&d->dat[0x8]);
 }
 
 static void
-console_deo(Device *d, Uint8 b0)
+console_deo(Device *d, Uint8 port)
 {
-	if(b0 == 0x1)
+	if(port == 0x1)
 		d->vector = peek16(d->dat, 0x0);
-	if(b0 > 0x7)
-		write(b0 - 0x7, (char *)&d->dat[b0], 1);
+	if(port > 0x7)
+		write(port - 0x7, (char *)&d->dat[port], 1);
 }
 
 static Uint8
-screen_dei(Device *d, Uint8 b0)
+screen_dei(Device *d, Uint8 port)
 {
-	switch(b0) {
+	switch(port) {
 	case 0x2: return ppu.width >> 8;
 	case 0x3: return ppu.width;
 	case 0x4: return ppu.height >> 8;
 	case 0x5: return ppu.height;
-	default: return d->dat[b0];
+	default: return d->dat[port];
 	}
 }
 
 static void
-screen_deo(Device *d, Uint8 b0)
+screen_deo(Device *d, Uint8 port)
 {
-	switch(b0) {
+	switch(port) {
 	case 0x1: d->vector = peek16(d->dat, 0x0); break;
 	case 0x5:
 		if(!FIXED_SIZE) set_size(peek16(d->dat, 0x2), peek16(d->dat, 0x4), 1);
@@ -368,14 +368,14 @@ screen_deo(Device *d, Uint8 b0)
 }
 
 static void
-file_deo(Device *d, Uint8 b0)
+file_deo(Device *d, Uint8 port)
 {
-	Uint8 read = b0 == 0xd;
-	if(read || b0 == 0xf) {
+	Uint8 read = port == 0xd;
+	if(read || port == 0xf) {
 		char *name = (char *)&d->mem[peek16(d->dat, 0x8)];
 		Uint16 result = 0, length = peek16(d->dat, 0xa);
 		long offset = (peek16(d->dat, 0x4) << 16) + peek16(d->dat, 0x6);
-		Uint16 addr = peek16(d->dat, b0 - 1);
+		Uint16 addr = peek16(d->dat, port - 1);
 		FILE *f = fopen(name, read ? "rb" : (offset ? "ab" : "wb"));
 		if(f) {
 			if(fseek(f, offset, SEEK_SET) != -1)
@@ -387,23 +387,23 @@ file_deo(Device *d, Uint8 b0)
 }
 
 static Uint8
-audio_dei(Device *d, Uint8 b0)
+audio_dei(Device *d, Uint8 port)
 {
 	Apu *c = &apu[d - devaudio0];
-	if(!audio_id) return d->dat[b0];
-	switch(b0) {
+	if(!audio_id) return d->dat[port];
+	switch(port) {
 	case 0x4: return apu_get_vu(c);
 	case 0x2: poke16(d->dat, 0x2, c->i); /* fall through */
-	default: return d->dat[b0];
+	default: return d->dat[port];
 	}
 }
 
 static void
-audio_deo(Device *d, Uint8 b0)
+audio_deo(Device *d, Uint8 port)
 {
 	Apu *c = &apu[d - devaudio0];
 	if(!audio_id) return;
-	if(b0 == 0xf) {
+	if(port == 0xf) {
 		SDL_LockAudioDevice(audio_id);
 		c->len = peek16(d->dat, 0xa);
 		c->addr = &d->mem[peek16(d->dat, 0xc)];
@@ -417,11 +417,11 @@ audio_deo(Device *d, Uint8 b0)
 }
 
 static Uint8
-datetime_dei(Device *d, Uint8 b0)
+datetime_dei(Device *d, Uint8 port)
 {
 	time_t seconds = time(NULL);
 	struct tm *t = localtime(&seconds);
-	switch(b0) {
+	switch(port) {
 	case 0x0: return (t->tm_year + 1900) >> 8;
 	case 0x1: return (t->tm_year + 1900);
 	case 0x2: return t->tm_mon;
@@ -433,20 +433,20 @@ datetime_dei(Device *d, Uint8 b0)
 	case 0x8: return t->tm_yday >> 8;
 	case 0x9: return t->tm_yday;
 	case 0xa: return t->tm_isdst;
-	default: return d->dat[b0];
+	default: return d->dat[port];
 	}
 }
 
 static Uint8
-nil_dei(Device *d, Uint8 b0)
+nil_dei(Device *d, Uint8 port)
 {
-	return d->dat[b0];
+	return d->dat[port];
 }
 
 static void
-nil_deo(Device *d, Uint8 b0)
+nil_deo(Device *d, Uint8 port)
 {
-	if(b0 == 0x1) d->vector = peek16(d->dat, 0x0);
+	if(port == 0x1) d->vector = peek16(d->dat, 0x0);
 }
 
 static const char *errors[] = {"underflow", "overflow", "division by zero"};
