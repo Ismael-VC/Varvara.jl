@@ -289,87 +289,89 @@ doctrl(SDL_Event *event, int z)
 
 #pragma mark - Devices
 
-static int
-system_talk(Device *d, Uint8 b0, Uint8 w)
+static Uint8
+system_dei(Device *d, Uint8 b0)
 {
-	if(!w) { /* read */
-		switch(b0) {
-		case 0x2: d->dat[0x2] = d->u->wst.ptr; break;
-		case 0x3: d->dat[0x3] = d->u->rst.ptr; break;
-		}
-	} else { /* write */
-		switch(b0) {
-		case 0x2: d->u->wst.ptr = d->dat[0x2]; break;
-		case 0x3: d->u->rst.ptr = d->dat[0x3]; break;
-		case 0xf: return 0;
-		}
-		if(b0 > 0x7 && b0 < 0xe)
-			set_palette(&d->dat[0x8]);
+	switch(b0) {
+	case 0x2: return d->u->wst.ptr;
+	case 0x3: return d->u->rst.ptr;
+	default: return d->dat[b0];
 	}
-	return 1;
 }
 
-static int
-console_talk(Device *d, Uint8 b0, Uint8 w)
+static void
+system_deo(Device *d, Uint8 b0)
 {
-	if(w) {
-		if(b0 == 0x1)
-			d->vector = peek16(d->dat, 0x0);
-		if(b0 > 0x7)
-			write(b0 - 0x7, (char *)&d->dat[b0], 1);
+	switch(b0) {
+	case 0x2: d->u->wst.ptr = d->dat[b0]; break;
+	case 0x3: d->u->rst.ptr = d->dat[b0]; break;
 	}
-	return 1;
+	if(b0 > 0x7 && b0 < 0xe)
+		set_palette(&d->dat[0x8]);
 }
 
-static int
-screen_talk(Device *d, Uint8 b0, Uint8 w)
+static void
+console_deo(Device *d, Uint8 b0)
 {
-	if(!w) switch(b0) {
-		case 0x2: d->dat[0x2] = ppu.width >> 8; break;
-		case 0x3: d->dat[0x3] = ppu.width; break;
-		case 0x4: d->dat[0x4] = ppu.height >> 8; break;
-		case 0x5: d->dat[0x5] = ppu.height; break;
-		}
-	else
-		switch(b0) {
-		case 0x1: d->vector = peek16(d->dat, 0x0); break;
-		case 0x5:
-			if(!FIXED_SIZE) return set_size(peek16(d->dat, 0x2), peek16(d->dat, 0x4), 1);
-			break;
-		case 0xe: {
-			Uint16 x = peek16(d->dat, 0x8);
-			Uint16 y = peek16(d->dat, 0xa);
-			Uint8 layer = d->dat[0xe] & 0x40;
-			ppu_write(&ppu, !!layer, x, y, d->dat[0xe] & 0x3);
-			if(d->dat[0x6] & 0x01) poke16(d->dat, 0x8, x + 1); /* auto x+1 */
-			if(d->dat[0x6] & 0x02) poke16(d->dat, 0xa, y + 1); /* auto y+1 */
-			break;
-		}
-		case 0xf: {
-			Uint16 x = peek16(d->dat, 0x8);
-			Uint16 y = peek16(d->dat, 0xa);
-			Uint8 layer = d->dat[0xf] & 0x40;
-			Uint8 *addr = &d->mem[peek16(d->dat, 0xc)];
-			if(d->dat[0xf] & 0x80) {
-				ppu_2bpp(&ppu, !!layer, x, y, addr, d->dat[0xf] & 0xf, d->dat[0xf] & 0x10, d->dat[0xf] & 0x20);
-				if(d->dat[0x6] & 0x04) poke16(d->dat, 0xc, peek16(d->dat, 0xc) + 16); /* auto addr+16 */
-			} else {
-				ppu_1bpp(&ppu, !!layer, x, y, addr, d->dat[0xf] & 0xf, d->dat[0xf] & 0x10, d->dat[0xf] & 0x20);
-				if(d->dat[0x6] & 0x04) poke16(d->dat, 0xc, peek16(d->dat, 0xc) + 8); /* auto addr+8 */
-			}
-			if(d->dat[0x6] & 0x01) poke16(d->dat, 0x8, x + 8); /* auto x+8 */
-			if(d->dat[0x6] & 0x02) poke16(d->dat, 0xa, y + 8); /* auto y+8 */
-			break;
-		}
-		}
-	return 1;
+	if(b0 == 0x1)
+		d->vector = peek16(d->dat, 0x0);
+	if(b0 > 0x7)
+		write(b0 - 0x7, (char *)&d->dat[b0], 1);
 }
 
-static int
-file_talk(Device *d, Uint8 b0, Uint8 w)
+static Uint8
+screen_dei(Device *d, Uint8 b0)
+{
+	switch(b0) {
+	case 0x2: return ppu.width >> 8;
+	case 0x3: return ppu.width;
+	case 0x4: return ppu.height >> 8;
+	case 0x5: return ppu.height;
+	default: return d->dat[b0];
+	}
+}
+
+static void
+screen_deo(Device *d, Uint8 b0)
+{
+	switch(b0) {
+	case 0x1: d->vector = peek16(d->dat, 0x0); break;
+	case 0x5:
+		if(!FIXED_SIZE) set_size(peek16(d->dat, 0x2), peek16(d->dat, 0x4), 1);
+		break;
+	case 0xe: {
+		Uint16 x = peek16(d->dat, 0x8);
+		Uint16 y = peek16(d->dat, 0xa);
+		Uint8 layer = d->dat[0xe] & 0x40;
+		ppu_write(&ppu, !!layer, x, y, d->dat[0xe] & 0x3);
+		if(d->dat[0x6] & 0x01) poke16(d->dat, 0x8, x + 1); /* auto x+1 */
+		if(d->dat[0x6] & 0x02) poke16(d->dat, 0xa, y + 1); /* auto y+1 */
+		break;
+	}
+	case 0xf: {
+		Uint16 x = peek16(d->dat, 0x8);
+		Uint16 y = peek16(d->dat, 0xa);
+		Uint8 layer = d->dat[0xf] & 0x40;
+		Uint8 *addr = &d->mem[peek16(d->dat, 0xc)];
+		if(d->dat[0xf] & 0x80) {
+			ppu_2bpp(&ppu, !!layer, x, y, addr, d->dat[0xf] & 0xf, d->dat[0xf] & 0x10, d->dat[0xf] & 0x20);
+			if(d->dat[0x6] & 0x04) poke16(d->dat, 0xc, peek16(d->dat, 0xc) + 16); /* auto addr+16 */
+		} else {
+			ppu_1bpp(&ppu, !!layer, x, y, addr, d->dat[0xf] & 0xf, d->dat[0xf] & 0x10, d->dat[0xf] & 0x20);
+			if(d->dat[0x6] & 0x04) poke16(d->dat, 0xc, peek16(d->dat, 0xc) + 8); /* auto addr+8 */
+		}
+		if(d->dat[0x6] & 0x01) poke16(d->dat, 0x8, x + 8); /* auto x+8 */
+		if(d->dat[0x6] & 0x02) poke16(d->dat, 0xa, y + 8); /* auto y+8 */
+		break;
+	}
+	}
+}
+
+static void
+file_deo(Device *d, Uint8 b0)
 {
 	Uint8 read = b0 == 0xd;
-	if(w && (read || b0 == 0xf)) {
+	if(read || b0 == 0xf) {
 		char *name = (char *)&d->mem[peek16(d->dat, 0x8)];
 		Uint16 result = 0, length = peek16(d->dat, 0xa);
 		long offset = (peek16(d->dat, 0x4) << 16) + peek16(d->dat, 0x6);
@@ -382,20 +384,26 @@ file_talk(Device *d, Uint8 b0, Uint8 w)
 		}
 		poke16(d->dat, 0x2, result);
 	}
-	return 1;
 }
 
-static int
-audio_talk(Device *d, Uint8 b0, Uint8 w)
+static Uint8
+audio_dei(Device *d, Uint8 b0)
 {
 	Apu *c = &apu[d - devaudio0];
-	if(!audio_id) return 1;
-	if(!w) {
-		if(b0 == 0x2)
-			poke16(d->dat, 0x2, c->i);
-		else if(b0 == 0x4)
-			d->dat[0x4] = apu_get_vu(c);
-	} else if(b0 == 0xf) {
+	if(!audio_id) return d->dat[b0];
+	switch(b0) {
+	case 0x4: return apu_get_vu(c);
+	case 0x2: poke16(d->dat, 0x2, c->i); /* fall through */
+	default: return d->dat[b0];
+	}
+}
+
+static void
+audio_deo(Device *d, Uint8 b0)
+{
+	Apu *c = &apu[d - devaudio0];
+	if(!audio_id) return;
+	if(b0 == 0xf) {
 		SDL_LockAudioDevice(audio_id);
 		c->len = peek16(d->dat, 0xa);
 		c->addr = &d->mem[peek16(d->dat, 0xc)];
@@ -406,38 +414,39 @@ audio_talk(Device *d, Uint8 b0, Uint8 w)
 		SDL_UnlockAudioDevice(audio_id);
 		SDL_PauseAudioDevice(audio_id, 0);
 	}
-	return 1;
 }
 
-static int
-datetime_talk(Device *d, Uint8 b0, Uint8 w)
+static Uint8
+datetime_dei(Device *d, Uint8 b0)
 {
 	time_t seconds = time(NULL);
 	struct tm *t = localtime(&seconds);
-	t->tm_year += 1900;
-	poke16(d->dat, 0x0, t->tm_year);
-	d->dat[0x2] = t->tm_mon;
-	d->dat[0x3] = t->tm_mday;
-	d->dat[0x4] = t->tm_hour;
-	d->dat[0x5] = t->tm_min;
-	d->dat[0x6] = t->tm_sec;
-	d->dat[0x7] = t->tm_wday;
-	poke16(d->dat, 0x08, t->tm_yday);
-	d->dat[0xa] = t->tm_isdst;
-	(void)b0;
-	(void)w;
-	return 1;
+	switch(b0) {
+	case 0x0: return (t->tm_year + 1900) >> 8;
+	case 0x1: return (t->tm_year + 1900);
+	case 0x2: return t->tm_mon;
+	case 0x3: return t->tm_mday;
+	case 0x4: return t->tm_hour;
+	case 0x5: return t->tm_min;
+	case 0x6: return t->tm_sec;
+	case 0x7: return t->tm_wday;
+	case 0x8: return t->tm_yday >> 8;
+	case 0x9: return t->tm_yday;
+	case 0xa: return t->tm_isdst;
+	default: return d->dat[b0];
+	}
 }
 
-static int
-nil_talk(Device *d, Uint8 b0, Uint8 w)
+static Uint8
+nil_dei(Device *d, Uint8 b0)
 {
-	if(w && b0 == 0x1)
-		d->vector = peek16(d->dat, 0x0);
-	(void)d;
-	(void)b0;
-	(void)w;
-	return 1;
+	return d->dat[b0];
+}
+
+static void
+nil_deo(Device *d, Uint8 b0)
+{
+	if(b0 == 0x1) d->vector = peek16(d->dat, 0x0);
 }
 
 static const char *errors[] = {"underflow", "overflow", "division by zero"};
@@ -526,22 +535,22 @@ main(int argc, char **argv)
 	if(!uxn_boot(&u))
 		return error("Boot", "Failed to start uxn.");
 
-	/* system   */ devsystem = uxn_port(&u, 0x0, system_talk);
-	/* console  */ devconsole = uxn_port(&u, 0x1, console_talk);
-	/* screen   */ devscreen = uxn_port(&u, 0x2, screen_talk);
-	/* audio0   */ devaudio0 = uxn_port(&u, 0x3, audio_talk);
-	/* audio1   */ uxn_port(&u, 0x4, audio_talk);
-	/* audio2   */ uxn_port(&u, 0x5, audio_talk);
-	/* audio3   */ uxn_port(&u, 0x6, audio_talk);
-	/* unused   */ uxn_port(&u, 0x7, nil_talk);
-	/* control  */ devctrl = uxn_port(&u, 0x8, nil_talk);
-	/* mouse    */ devmouse = uxn_port(&u, 0x9, nil_talk);
-	/* file     */ uxn_port(&u, 0xa, file_talk);
-	/* datetime */ uxn_port(&u, 0xb, datetime_talk);
-	/* unused   */ uxn_port(&u, 0xc, nil_talk);
-	/* unused   */ uxn_port(&u, 0xd, nil_talk);
-	/* unused   */ uxn_port(&u, 0xe, nil_talk);
-	/* unused   */ uxn_port(&u, 0xf, nil_talk);
+	/* system   */ devsystem = uxn_port(&u, 0x0, system_dei, system_deo);
+	/* console  */ devconsole = uxn_port(&u, 0x1, nil_dei, console_deo);
+	/* screen   */ devscreen = uxn_port(&u, 0x2, screen_dei, screen_deo);
+	/* audio0   */ devaudio0 = uxn_port(&u, 0x3, audio_dei, audio_deo);
+	/* audio1   */ uxn_port(&u, 0x4, audio_dei, audio_deo);
+	/* audio2   */ uxn_port(&u, 0x5, audio_dei, audio_deo);
+	/* audio3   */ uxn_port(&u, 0x6, audio_dei, audio_deo);
+	/* unused   */ uxn_port(&u, 0x7, nil_dei, nil_deo);
+	/* control  */ devctrl = uxn_port(&u, 0x8, nil_dei, nil_deo);
+	/* mouse    */ devmouse = uxn_port(&u, 0x9, nil_dei, nil_deo);
+	/* file     */ uxn_port(&u, 0xa, nil_dei, file_deo);
+	/* datetime */ uxn_port(&u, 0xb, datetime_dei, nil_deo);
+	/* unused   */ uxn_port(&u, 0xc, nil_dei, nil_deo);
+	/* unused   */ uxn_port(&u, 0xd, nil_dei, nil_deo);
+	/* unused   */ uxn_port(&u, 0xe, nil_dei, nil_deo);
+	/* unused   */ uxn_port(&u, 0xf, nil_dei, nil_deo);
 
 	/* set default zoom */
 	if(SDL_GetCurrentDisplayMode(0, &DM) == 0)

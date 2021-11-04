@@ -43,43 +43,43 @@ inspect(Stack *s, char *name)
 
 #pragma mark - Devices
 
-static int
-system_talk(Device *d, Uint8 b0, Uint8 w)
+static Uint8
+system_dei(Device *d, Uint8 b0)
 {
-	if(!w) { /* read */
-		switch(b0) {
-		case 0x2: d->dat[0x2] = d->u->wst.ptr; break;
-		case 0x3: d->dat[0x3] = d->u->rst.ptr; break;
-		}
-	} else { /* write */
-		switch(b0) {
-		case 0x2: d->u->wst.ptr = d->dat[0x2]; break;
-		case 0x3: d->u->rst.ptr = d->dat[0x3]; break;
-		case 0xe:
-			inspect(&d->u->wst, "Working-stack");
-			inspect(&d->u->rst, "Return-stack");
-			break;
-		case 0xf: return 0;
-		}
+	switch(b0) {
+	case 0x2: return d->u->wst.ptr;
+	case 0x3: return d->u->rst.ptr;
+	default: return d->dat[b0];
 	}
-	return 1;
 }
 
-static int
-console_talk(Device *d, Uint8 b0, Uint8 w)
+static void
+system_deo(Device *d, Uint8 b0)
+{
+	switch(b0) {
+	case 0x2: d->u->wst.ptr = d->dat[b0]; break;
+	case 0x3: d->u->rst.ptr = d->dat[b0]; break;
+	case 0xe:
+		inspect(&d->u->wst, "Working-stack");
+		inspect(&d->u->rst, "Return-stack");
+		break;
+	}
+}
+
+static void
+console_deo(Device *d, Uint8 b0)
 {
 	if(b0 == 0x1)
 		d->vector = peek16(d->dat, 0x0);
-	if(w && b0 > 0x7)
+	if(b0 > 0x7)
 		write(b0 - 0x7, (char *)&d->dat[b0], 1);
-	return 1;
 }
 
-static int
-file_talk(Device *d, Uint8 b0, Uint8 w)
+static void
+file_deo(Device *d, Uint8 b0)
 {
 	Uint8 read = b0 == 0xd;
-	if(w && (read || b0 == 0xf)) {
+	if(read || b0 == 0xf) {
 		char *name = (char *)&d->mem[peek16(d->dat, 0x8)];
 		Uint16 result = 0, length = peek16(d->dat, 0xa);
 		long offset = (peek16(d->dat, 0x4) << 16) + peek16(d->dat, 0x6);
@@ -92,36 +92,39 @@ file_talk(Device *d, Uint8 b0, Uint8 w)
 		}
 		poke16(d->dat, 0x2, result);
 	}
-	return 1;
 }
 
-static int
-datetime_talk(Device *d, Uint8 b0, Uint8 w)
+static Uint8
+datetime_dei(Device *d, Uint8 b0)
 {
 	time_t seconds = time(NULL);
 	struct tm *t = localtime(&seconds);
-	t->tm_year += 1900;
-	poke16(d->dat, 0x0, t->tm_year);
-	d->dat[0x2] = t->tm_mon;
-	d->dat[0x3] = t->tm_mday;
-	d->dat[0x4] = t->tm_hour;
-	d->dat[0x5] = t->tm_min;
-	d->dat[0x6] = t->tm_sec;
-	d->dat[0x7] = t->tm_wday;
-	poke16(d->dat, 0x08, t->tm_yday);
-	d->dat[0xa] = t->tm_isdst;
-	(void)b0;
-	(void)w;
-	return 1;
+	switch(b0) {
+	case 0x0: return (t->tm_year + 1900) >> 8;
+	case 0x1: return (t->tm_year + 1900);
+	case 0x2: return t->tm_mon;
+	case 0x3: return t->tm_mday;
+	case 0x4: return t->tm_hour;
+	case 0x5: return t->tm_min;
+	case 0x6: return t->tm_sec;
+	case 0x7: return t->tm_wday;
+	case 0x8: return t->tm_yday >> 8;
+	case 0x9: return t->tm_yday;
+	case 0xa: return t->tm_isdst;
+	default: return d->dat[b0];
+	}
 }
 
-static int
-nil_talk(Device *d, Uint8 b0, Uint8 w)
+static Uint8
+nil_dei(Device *d, Uint8 b0)
 {
-	(void)d;
-	(void)b0;
-	(void)w;
-	return 1;
+	return d->dat[b0];
+}
+
+static void
+nil_deo(Device *d, Uint8 b0)
+{
+	if(b0 == 0x1) d->vector = peek16(d->dat, 0x0);
 }
 
 #pragma mark - Generics
@@ -173,22 +176,22 @@ main(int argc, char **argv)
 	if(!uxn_boot(&u))
 		return error("Boot", "Failed");
 
-	/* system   */ devsystem = uxn_port(&u, 0x0, system_talk);
-	/* console  */ devconsole = uxn_port(&u, 0x1, console_talk);
-	/* empty    */ uxn_port(&u, 0x2, nil_talk);
-	/* empty    */ uxn_port(&u, 0x3, nil_talk);
-	/* empty    */ uxn_port(&u, 0x4, nil_talk);
-	/* empty    */ uxn_port(&u, 0x5, nil_talk);
-	/* empty    */ uxn_port(&u, 0x6, nil_talk);
-	/* empty    */ uxn_port(&u, 0x7, nil_talk);
-	/* empty    */ uxn_port(&u, 0x8, nil_talk);
-	/* empty    */ uxn_port(&u, 0x9, nil_talk);
-	/* file     */ uxn_port(&u, 0xa, file_talk);
-	/* datetime */ uxn_port(&u, 0xb, datetime_talk);
-	/* empty    */ uxn_port(&u, 0xc, nil_talk);
-	/* empty    */ uxn_port(&u, 0xd, nil_talk);
-	/* empty    */ uxn_port(&u, 0xe, nil_talk);
-	/* empty    */ uxn_port(&u, 0xf, nil_talk);
+	/* system   */ devsystem = uxn_port(&u, 0x0, system_dei, system_deo);
+	/* console  */ devconsole = uxn_port(&u, 0x1, nil_dei, console_deo);
+	/* empty    */ uxn_port(&u, 0x2, nil_dei, nil_deo);
+	/* empty    */ uxn_port(&u, 0x3, nil_dei, nil_deo);
+	/* empty    */ uxn_port(&u, 0x4, nil_dei, nil_deo);
+	/* empty    */ uxn_port(&u, 0x5, nil_dei, nil_deo);
+	/* empty    */ uxn_port(&u, 0x6, nil_dei, nil_deo);
+	/* empty    */ uxn_port(&u, 0x7, nil_dei, nil_deo);
+	/* empty    */ uxn_port(&u, 0x8, nil_dei, nil_deo);
+	/* empty    */ uxn_port(&u, 0x9, nil_dei, nil_deo);
+	/* file     */ uxn_port(&u, 0xa, nil_dei, file_deo);
+	/* datetime */ uxn_port(&u, 0xb, datetime_dei, nil_deo);
+	/* empty    */ uxn_port(&u, 0xc, nil_dei, nil_deo);
+	/* empty    */ uxn_port(&u, 0xd, nil_dei, nil_deo);
+	/* empty    */ uxn_port(&u, 0xe, nil_dei, nil_deo);
+	/* empty    */ uxn_port(&u, 0xf, nil_dei, nil_deo);
 
 	for(i = 1; i < argc; ++i) {
 		if(!loaded++) {
