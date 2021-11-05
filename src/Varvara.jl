@@ -54,4 +54,4 @@ function main()
   uxn_boot(c)
 end
 
-main()
+#main()

@@ -16,7 +16,7 @@ export low, high, concat, bool
 
 low(x::UInt16)::UInt8 = x & 0xff
 high(x::UInt16)::UInt8 = x >> 0x8
-concat(low::UInt8, high::UInt8)::UInt16 = (UInt16(high) << 8) + low
+concat(low::UInt8, high::UInt8)::UInt16 = UInt16(high) << 8 | low
 bool(x::Number)::Bool = !iszero(x)
 
 for T ∈ (:AbstractArray, :AbstractString)
