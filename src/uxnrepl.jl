@@ -25,13 +25,7 @@ function uxntal_repl_v1(s)
   push!(ARGS, "snarf.rom")
   uxn_boot(c)
 
-  initrepl(
-    uxntal_repl_v1,
-    prompt_text= "uxntal> ",
-    prompt_color= :blue,
-    start_key=')',
-    mode_name="Uxntal_mode"
-  )
+  initrepl(uxntal_repl_v1, prompt_text = "uxntal> ", prompt_color = :blue, start_key = ')', mode_name = "Uxntal_mode")
 end
 
 
