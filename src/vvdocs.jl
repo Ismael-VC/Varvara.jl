@@ -18,7 +18,6 @@ import ..Uxn
 
 @doc md"""
 Oh My Uxn!
-""" ->
-Uxn.CPU
+""" -> Uxn.CPU
 
 end  # module

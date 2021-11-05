@@ -107,11 +107,14 @@ push(s::Stack, a::UInt8)::Void = begin
   s.ptr == 0xff ? (s.error = 2; return) : (s.dat[s.ptr] = a; s.ptr += 1; return)
 end
 
+#! format: off
 pop(s::Stack, keep::Bool) = pop(s, UInt8, keep)
 pop(s::Stack, mode::Type{UInt8}, keep::Bool = false)::UInt8 = begin
-  keep ? (s.kptr == 0x0 ? (s.error = 1; return 0x0) : (s.kptr -= 1; return s.dat[s.kptr])) :
-  (s.ptr == 0x0 ? (s.error = 1; return 0x0) : (s.ptr -= 1; return s.dat[s.ptr]))
+  keep ? (s.kptr == 0x0 ? 
+    (s.error = 1; return 0x0) : (s.kptr -= 1; return s.dat[s.kptr])) :
+    (s.ptr == 0x0 ? (s.error = 1; return 0x0) : (s.ptr -= 1; return s.dat[s.ptr]))
 end
+#! format: on
 
 pop(s::Stack, mode::Type{UInt16}, keep::Bool = false)::UInt16 = begin
   a = pop(s, keep)
@@ -143,7 +146,8 @@ warp(c::CPU, a::BytSht)::Void = (c.ram.ptr += a; return)
 
 #= Core =#
 function uxn_eval(c::CPU, vec::UInt16, uxn_halt!::Function)::Int
-  (!bool(vec) || bool(c.dev[0].dat[0xf])) && return 0
+  halt = c.dev[0].dat[0xf]
+  (!bool(vec) || bool(halt)) && return 0
   c.ram.ptr = vec
   c.wst.ptr > 0xf8 && (c.wst.ptr = 0xf8)
 
@@ -173,24 +177,28 @@ function uxn_eval(c::CPU, vec::UInt16, uxn_halt!::Function)::Int
                         end
 
       #= Logic =#
-      0x08 => #= EQU =# (a = pop(c.src, m, k); b = pop(c.src, m, k); push(c.src, b == a))
-      0x09 => #= NEQ =# (a = pop(c.src, m, k); b = pop(c.src, m, k); push(c.src, b != a))
-      0x0a => #= GTH =# (a = pop(c.src, m, k); b = pop(c.src, m, k); push(c.src, b > a))
-      0x0b => #= LTH =# (a = pop(c.src, m, k); b = pop(c.src, m, k); push(c.src, b < a))
+      0x08 => #= EQU =# (a = pop(c.src, m, k); b = pop(c.src, m, k); push(c.src, UInt8(b == a)))
+      0x09 => #= NEQ =# (a = pop(c.src, m, k); b = pop(c.src, m, k); push(c.src, UInt8(b != a)))
+      0x0a => #= GTH =# (a = pop(c.src, m, k); b = pop(c.src, m, k); push(c.src, UInt8(b > a)))
+      0x0b => #= LTH =# (a = pop(c.src, m, k); b = pop(c.src, m, k); push(c.src, UInt8(b < a)))
       0x0c => #= JMP =# (a = pop(c.src, m, k); warp(c, a))
-      0x0d => #= JCN =# (a = pop(c.src, m, k); (pop(c.src, m, k) && warp(c, a)))
-      0x0e => #= JSR =# (a = pop(c.src, m, k); push(c.dst, c.ram.ptr); warp(c, a))
+      0x0d => #= JCN =# (a = pop(c.src, m, k); (pop(c.src, UInt8, k) && warp(c, a)))
+      0x0e => #= JSR =# (a = pop(c.src, m, k); push(c.dst, UInt16(c.ram.ptr)); warp(c, a))
       0x0f => #= STH =# (a = pop(c.src, m, k); push(c.dst, a))
 
       #= Memory =#
-      0x10 => #= LDZ =# (a = pop(c.src, m, k); push(c.src, peek(c.ram.dat, a)))
-      0x11 => #= STZ =# (a = pop(c.src, m, k); b = pop(c.src, m, k); poke(c.ram.dat, a, b))
-      0x12 => #= LDR =# (a = pop(c.src, m, k); push(c.src, peek(c.ram.dat, c.ram.ptr + Int8(a))))
-      0x13 => #= STR =# (a = pop(c.src, m, k); b = pop(c.src, m, k); poke(c.ram.dat, c.ram.ptr + Int8(a), b))
-      0x14 => #= LDA =# (a = pop(c.src, m, k); push(c.src, peek(c.ram.dat, a)))
-      0x15 => #= STA =# (a = pop(c.src, m, k); b = pop(c.src, m, k); poke(c.ram.dat, a, b))
-      0x16 => #= DEI =# (a = pop(c.src, m, k); push(c.src, devr(c.dev[a >> 4], a, m)))
-      0x17 => #= DEO =# (a = pop(c.src, m, k); b = pop(c.src, m, k); !bool(devw(c.dev[a >> 4], a, b)) && return 1)
+      0x10 => #= LDZ =# (a = pop(c.src, UInt8, k); push(c.src, peek(c.ram.dat, a)))
+      0x11 => #= STZ =# (a = pop(c.src, UInt8, k); b = pop(c.src, m, k); poke(c.ram.dat, a, b))
+      0x12 => #= LDR =# (a = pop(c.src, UInt8, k); push(c.src, peek(c.ram.dat, c.ram.ptr + Int8(a))))
+      0x13 => #= STR =# (a = pop(c.src, UInt8, k); b = pop(c.src, m, k); poke(c.ram.dat, c.ram.ptr + Int8(a), b))
+      0x14 => #= LDA =# (a = pop(c.src, UInt16, k); push(c.src, peek(c.ram.dat, a)))
+      0x15 => #= STA =# (a = pop(c.src, UInt16, k); b = pop(c.src, m, k); poke(c.ram.dat, a, b))
+      0x16 => #= DEI =# (a = pop(c.src, UInt8, k); push(c.src, devr(c.dev[a >> 4], a, m)))
+      0x17 => #= DEO =# begin 
+        a = pop(c.src, UInt8, k); 
+        b = pop(c.src, m, k); 
+        !bool(devw(c.dev[a >> 4], a, b)) && return 1
+      end
 
       #= Arithmetic =#
       0x18 => #= ADD =# (a = pop(c.src, m, k); b = pop(c.src, m, k); push(c.src, b + a))
@@ -204,7 +212,7 @@ function uxn_eval(c::CPU, vec::UInt16, uxn_halt!::Function)::Int
       0x1c => #= AND =# (a = pop(c.src, m, k); b = pop(c.src, m, k); push(c.src, b & a))
       0x1d => #= ORA =# (a = pop(c.src, m, k); b = pop(c.src, m, k); push(c.src, b | a))
       0x1e => #= EOR =# (a = pop(c.src, m, k); b = pop(c.src, m, k); push(c.src, b ^ a))
-      0x1f => #= SFT =# (a = pop(c.src, m, k); b = pop(c.src, m, k); push(c.src, b >> (a & 0x0f) << ((a & 0xf0) >> 4)))
+      0x1f => #= SFT =# (a = pop(c.src, UInt8, k); b = pop(c.src, m, k); push(c.src, b >> (a & 0x0f) << ((a & 0xf0) >> 4)))
     end 
     #! format: on
 

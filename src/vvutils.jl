@@ -19,8 +19,8 @@ high(x::UInt16)::UInt8 = x >> 0x8
 concat(low::UInt8, high::UInt8)::UInt16 = (UInt16(high) << 8) + low
 bool(x::Number)::Bool = !iszero(x)
 
-for T in (:AbstractArray, :AbstractString)
- @eval bool(x::$T) = !isempty(x)
+for T ∈ (:AbstractArray, :AbstractString)
+  @eval bool(x::$T) = !isempty(x)
 end
 
 end  # module

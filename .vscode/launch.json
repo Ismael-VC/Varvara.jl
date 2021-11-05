@@ -11,8 +11,9 @@
             "program": "${workspaceFolder}/src/Varvara.jl",
             "stopOnEntry": false,
             "cwd": "${workspaceFolder}/src",
-            "juliaEnv": "${command:activeJuliaEnvironment}"
-            "args": ["hello.rom"]
+            "juliaEnv": "${command:activeJuliaEnvironment}",
+            "args": ["hello.rom"],
+            "timeout": 60000
         }
     ]
 }

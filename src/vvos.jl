@@ -43,7 +43,7 @@ const UXN_EXCEPTIONS = (
   :UxnZeroDivisionError,
 )
 
-for e in UXN_EXCEPTIONS
+for e ∈ UXN_EXCEPTIONS
   @eval struct $e
     msg::String
   end
@@ -128,7 +128,7 @@ function uxn_boot(c)::Int
 
   for rom ∈ ARGS
     if !bool(loaded)
-      loaded = 1
+      loaded += 1
       !bool(load(c, rom)) && (@error("Load: Failed"); return 0)
       !bool(uxn_eval(c, PAGE_PROGRAM)) && (@error("Init: Failed"); return 0)
     else

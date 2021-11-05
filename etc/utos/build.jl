@@ -13,11 +13,11 @@
 =#
 
 function main()
-    println("Running..")
-    run(`julia utos.jl ../../projects/sounds/pad1.ss8 ../../projects/sounds/pad1.pcm`)
-    println("Done.")
+  println("Running..")
+  run(`julia utos.jl ../../projects/sounds/pad1.ss8 ../../projects/sounds/pad1.pcm`)
+  println("Done.")
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    main()
+  main()
 end

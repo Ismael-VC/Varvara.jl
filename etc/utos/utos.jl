@@ -13,28 +13,28 @@
 module UTOS
 
 function main()::Int
-    if length(ARGS) > 2 || !isfile(ARGS[1])
-        return 1
-    end
+  if length(ARGS) > 2 || !isfile(ARGS[1])
+    return 1
+  end
 
-    buffer = open(ARGS[1]) do io
-        read(io)
-    end
+  buffer = open(ARGS[1]) do io
+    read(io)
+  end
 
-    buffer .+= 0x80
+  buffer .+= 0x80
 
-    open(ARGS[2], "w") do io
-        write(io, buffer)
-    end
+  open(ARGS[2], "w") do io
+    write(io, buffer)
+  end
 
-    println("\n")
-    return 0
+  println("\n")
+  return 0
 end
 
 end  # module
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    using .UTOS: main
+  using .UTOS: main
 
-    main()
+  main()
 end
