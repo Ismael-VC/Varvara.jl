@@ -17,25 +17,30 @@ using Printf: @sprintf
 import Match
 import Base: show
 
-using  Match: @match
+using Match: @match
 
 using ..VarvaraUtils: bool
 using ..Uxn: CPU, Memory, Stack, Device, PAGE_PROGRAM, peek, poke, uxn_eval
+
+#! format: off
 
 export load, system_talk, console_talk, file_talk, datetime_talk, inspect,
  uxn_boot, run!, FILDES, UXN_EXCEPTIONS, UXN_ERRORS, console_input,
  UxnUnderflowError, UxnOverflowError, UxnZeroDivisionError
 
+ #! format: on
+
 #= Generics =#
-const FILDES = Dict(
-  0 => stdin,
-  1 => stdout,
-  2 => stderr
-)
+const FILDES = Dict(0 => stdin, 1 => stdout, 2 => stderr)
 
 const UXN_EXCEPTIONS = (
-  :UxnInputError, :UxnLoadError, :UxnInitError, :UnderflowErro,
-  :UxnUnderflowError, :UxnOverflowError, :UxnZeroDivisionError
+  :UxnInputError,
+  :UxnLoadError,
+  :UxnInitError,
+  :UnderflowErro,
+  :UxnUnderflowError,
+  :UxnOverflowError,
+  :UxnZeroDivisionError,
 )
 
 for e in UXN_EXCEPTIONS
@@ -64,7 +69,8 @@ function run!(c::CPU)::Nothing
     end
   catch e
     if e isa InterruptException
-      @info "bye!"; return
+      @info "bye!"
+      return
     else
       throw(e)
     end
@@ -74,7 +80,7 @@ end
 function inspect(s::Stack, name::AbstractString)::Nothing
   @info name
   head = ""
-  for y in 0:3, x in 0:7
+  for y ∈ 0:3, x ∈ 0:7
     p = y * 8 + x
     sp = s.dat[p]
     head *= p == s.ptr ? @sprintf("[%02x] ", sp) : @sprintf("%02x ", sp)
@@ -88,7 +94,7 @@ function load(c::CPU, filepath::AbstractString)::Int
     used = PAGE_PROGRAM + length(rom) - 1
     free = 65279  # typemax(UInt16) - PAGE_PROGRAM
     @assert free - used > 0
-    c.ram.dat[PAGE_PROGRAM:PAGE_PROGRAM + length(rom) - 1] = rom
+    c.ram.dat[PAGE_PROGRAM:PAGE_PROGRAM+length(rom)-1] = rom
     @info "Loaded $filepath"
 
     return 1
@@ -101,6 +107,7 @@ end
 function uxn_boot(c)::Int
   loaded = 0
 
+  #! format: off
   #= system   =# Device(c, 0x0, system_talk)
   #= console  =# Device(c, 0x1, console_talk)
   #= empty    =# Device(c, 0x2)
@@ -117,8 +124,9 @@ function uxn_boot(c)::Int
   #= empty    =# Device(c, 0xd)
   #= empty    =# Device(c, 0xe)
   #= empty    =# Device(c, 0xf)
+  #! format: on
 
-  for rom in ARGS
+  for rom ∈ ARGS
     if !bool(loaded)
       loaded = 1
       !bool(load(c, rom)) && (@error("Load: Failed"); return 0)
@@ -158,7 +166,7 @@ end
 
 function console_talk(d::Device, b0::UInt8, w::UInt8)::Int
   b0 == 0x1 && (d.vector = peek(d.dat, 0x0))
-  (bool(w) && b0 > 0x7) && write(FILDES[b0 - 0x7], Char(d.dat[b0]))
+  (bool(w) && b0 > 0x7) && write(FILDES[b0-0x7], Char(d.dat[b0]))
 
   return 1
 end
@@ -197,6 +205,7 @@ struct Ctm
 end
 
 function Base.show(io::IO, t::Ctm)
+  #! format: off
   print(io,
     t.year + 1900, "-",
     lpad(t.month, 2, "0"), "-",
@@ -205,19 +214,13 @@ function Base.show(io::IO, t::Ctm)
     lpad(t.minute, 2, "0"), ":",
     lpad(t.second, 2, "0")
   )
+  #! format: on
 end
 
 function datetime_talk(d::Device, b0::UInt8, w::UInt8)::Int
   result = Ref{Int64}(0)
 
-  localtime = ccall(
-    @static(Sys.iswindows() ?
-            :localtime :
-           (:localtime, "libc.so.6")),
-    Ptr{Ctm},
-    (Ptr{Int64},),
-    result
-  )
+  localtime = ccall(@static(Sys.iswindows() ? :localtime : (:localtime, "libc.so.6")), Ptr{Ctm}, (Ptr{Int64},), result)
 
   t = unsafe_load(localtime)
   t.year += 1900
@@ -238,9 +241,9 @@ end
 end  # module
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    using .VarvaraOS: uxn_boot
+  using .VarvaraOS: uxn_boot
 
-    c = CPU()
-    uxn_boot(c)
-    run!(c)
+  c = CPU()
+  uxn_boot(c)
+  run!(c)
 end

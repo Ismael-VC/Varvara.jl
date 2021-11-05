@@ -23,6 +23,8 @@ using UUIDs: UUID, uuid4
 
 using ..VarvaraUtils: high, low, concat, bool
 
+#! format: off
+
 export  CPU, AbstractCPU,  Stack,  Memory,      Device,    uxn_eval, OVector,
   Void, PAGE_PROGRAM, MODE_SHORT,  MODE_RETURN, MODE_KEEP, uxn_boot,
 
@@ -31,13 +33,15 @@ export  CPU, AbstractCPU,  Stack,  Memory,      Device,    uxn_eval, OVector,
   LIT, INC, POP, DUP, NIP, SWP, OVR, ROT, EQU, NEQ, GTH, LTH, JMP, JCN, JSR, STH,
   LDZ, STZ, LDR, STR, LDA, STA, DEI, DEO, ADD, SUB, MUL, DIV, AND, ORA, EOR, SFT
 
+#! format: on
+
 const PAGE_PROGRAM = 0x0100
 const MODE_SHORT = 0x20
 const MODE_RETURN = 0x40
 const MODE_KEEP = 0x80
 const Void = Nothing
-const OVector{T} = OffsetVector{T, Vector{T}} where {T}
-const BytSht = Union{UInt8, UInt16}
+const OVector{T} = OffsetVector{T,Vector{T}} where {T}
+const BytSht = Union{UInt8,UInt16}
 
 OVector{T}(len::BytSht) where {T} = OffsetVector(Vector{T}(undef, len), 0:len-1)
 OVector(T::DataType, len::BytSht) = OffsetVector(zeros(T, len), 0:len-1)
@@ -55,9 +59,9 @@ mutable struct Memory
   dat::OVector{UInt8}
 end
 
-abstract type AbstractCPU end;
+abstract type AbstractCPU end
 
-mutable struct Device{C<:AbstractCPU, F<:Function}
+mutable struct Device{C<:AbstractCPU,F<:Function}
   c::C
   id::UInt8
   vec::UInt16
@@ -77,15 +81,15 @@ mutable struct CPU <: AbstractCPU
 end
 
 
-Stack()::Stack  = Stack(0, 0, 0, OVector(UInt8, 0xff))
+Stack()::Stack = Stack(0, 0, 0, OVector(UInt8, 0xff))
 Memory()::Memory = Memory(0, OVector(UInt16, 0xffff))
 CPU()::CPU = CPU(uuid4(), Stack(), Stack(), Stack(), Stack(), Memory(), OVector{Device}(0x10))
 
-function Device(talkfn::F, c::C, id::UInt8)::Device where {C<:AbstractCPU, F<:Function}
+function Device(talkfn::F, c::C, id::UInt8)::Device where {C<:AbstractCPU,F<:Function}
   Device(c, id, talkfn)
 end
 
-function Device(c::C, id::UInt8, talkfn::F)::Device where {C<:AbstractCPU, F<:Function}
+function Device(c::C, id::UInt8, talkfn::F)::Device where {C<:AbstractCPU,F<:Function}
   d = Device(c, id, 0x000, talkfn, c.ram.dat, OVector{UInt8}(0x10))
   c.dev[id] = d
   return d
@@ -99,17 +103,14 @@ end
 
 #= Operations =#
 push(s::Stack, a::UInt16)::Void = (push(s, high(a)); push(s, low(a)))
-push(s::Stack,  a::UInt8)::Void = begin
-  s.ptr == 0xff ?
-    (s.error = 2; return) :
-    (s.dat[s.ptr] = a; s.ptr += 1; return)
+push(s::Stack, a::UInt8)::Void = begin
+  s.ptr == 0xff ? (s.error = 2; return) : (s.dat[s.ptr] = a; s.ptr += 1; return)
 end
 
 pop(s::Stack, keep::Bool) = pop(s, UInt8, keep)
-pop(s::Stack, mode::Type{UInt8}, keep::Bool=false)::UInt8 = begin
-  keep ?
-    (s.kptr == 0x0 ? (s.error = 1; return 0x0) : (s.kptr -= 1; return s.dat[s.kptr])) :
-    (s.ptr  == 0x0 ? (s.error = 1; return 0x0) : (s.ptr  -= 1; return s.dat[s.ptr]))
+pop(s::Stack, mode::Type{UInt8}, keep::Bool = false)::UInt8 = begin
+  keep ? (s.kptr == 0x0 ? (s.error = 1; return 0x0) : (s.kptr -= 1; return s.dat[s.kptr])) :
+  (s.ptr == 0x0 ? (s.error = 1; return 0x0) : (s.ptr -= 1; return s.dat[s.ptr]))
 end
 
 pop(s::Stack, mode::Type{UInt16}, keep::Bool = false)::UInt16 = begin
@@ -118,23 +119,23 @@ pop(s::Stack, mode::Type{UInt16}, keep::Bool = false)::UInt16 = begin
   concat(a, b)
 end
 
-const StkMem = Union{Stack, Memory}
+const StkMem = Union{Stack,Memory}
 
-poke(sm::StkMem, a::BytSht, b::UInt8)::Void  = (sm.dat[a] = b; return)
+poke(sm::StkMem, a::BytSht, b::UInt8)::Void = (sm.dat[a] = b; return)
 poke(sm::StkMem, a::BytSht, b::UInt16)::Void = (poke(sm, a, high(b)); poke(sm, a + 0x1, low(b)))
 
-peek(sm::StkMem, a::UInt8)::UInt8   = sm.dat[a]
+peek(sm::StkMem, a::UInt8)::UInt8 = sm.dat[a]
 peek(sm::StkMem, a::UInt16)::UInt16 = concat(peek(sm, low(a)), peek(sm, low(a) + 0x1))
 
-devw(d::Device, a::UInt8, b::UInt8)::Int  = (d.dat[a & 0xf] = b; d.talk(d, a & 0x0f, 0x1))
+devw(d::Device, a::UInt8, b::UInt8)::Int = (d.dat[a&0xf] = b; d.talk(d, a & 0x0f, 0x1))
 devw(d::Device, a::UInt8, b::UInt16)::Int = devw(d, a, high(b)) && devw(d, a + 0x1, low(b))
 
 devr(d::Device, a::UInt8)::UInt8 = devr(d, a, UInt8)
-devr(d::Device, a::UInt8, mode::Type{UInt8})::UInt8   = (d.talk(d, a & 0x0f, 0x0); return d.dat[a & 0xf])
+devr(d::Device, a::UInt8, mode::Type{UInt8})::UInt8 = (d.talk(d, a & 0x0f, 0x0); return d.dat[a&0xf])
 devr(d::Device, a::UInt8, mode::Type{UInt16})::UInt16 = concat(devr(d, a), devr(d, a + 0x1))
 
 pull(c::CPU) = pull(c, UInt8)
-pull(c::CPU, mode::Type{UInt8})::Void  = (push(c.src, peek(c.ram, c.ram.ptr)); c.ram.ptr += 1; return)
+pull(c::CPU, mode::Type{UInt8})::Void = (push(c.src, peek(c.ram, c.ram.ptr)); c.ram.ptr += 1; return)
 pull(c::CPU, mode::Type{UInt16})::Void = (push(c.src, peek(c.ram, c.ram.ptr)); c.ram.ptr += 2; return)
 
 warp(c::CPU, a::BytSht)::Void = (c.ram.ptr += a; return)
@@ -148,8 +149,7 @@ function uxn_eval(c::CPU, vec::UInt16, uxn_halt!::Function)::Int
 
   while (instr = c.ram.dat[c.ram.ptr]; c.ram.ptr += 1; bool(instr))
     # Return mode #
-    bool(instr & MODE_RETURN) ? (c.src = c.rst; c.dst = c.wst) :
-                                (c.src = c.wst; c.dst = c.rst)
+    bool(instr & MODE_RETURN) ? (c.src = c.rst; c.dst = c.wst) : (c.src = c.wst; c.dst = c.rst)
 
     # Keep mode #
     k = bool(instr & MODE_KEEP) ? (c.src.kptr = c.src.ptr; true) : false
@@ -157,6 +157,7 @@ function uxn_eval(c::CPU, vec::UInt16, uxn_halt!::Function)::Int
     # Short mode #
     m = bool(instr & MODE_SHORT) ? UInt16 : UInt8
 
+    #! format: off
     @match (instr & 0x1f) begin
       #= Stack =#
       0x00 => #= LIT =# pull(c, m)
@@ -167,9 +168,9 @@ function uxn_eval(c::CPU, vec::UInt16, uxn_halt!::Function)::Int
       0x05 => #= SWP =# (a = pop(c.src, m, k); b = pop(c.src, m, k); push(c.src, a); push(c.src, b))
       0x06 => #= OVR =# (a = pop(c.src, m, k); b = pop(c.src, m, k); push(c.src, b); push(c.src, a); push(c.src, b))
       0x07 => #= ROT =# begin
-        a = pop(c.src, m, k); b = pop(c.src, m, k); c = pop(c.src, m, k)
-        push(c.src, b); push(c.src, a); push(c.src, c)
-      end
+                          a = pop(c.src, m, k); b = pop(c.src, m, k); c = pop(c.src, m, k)
+                          push(c.src, b); push(c.src, a); push(c.src, c)
+                        end
 
       #= Logic =#
       0x08 => #= EQU =# (a = pop(c.src, m, k); b = pop(c.src, m, k); push(c.src, b == a))
@@ -196,15 +197,16 @@ function uxn_eval(c::CPU, vec::UInt16, uxn_halt!::Function)::Int
       0x19 => #= SUB =# (a = pop(c.src, m, k); b = pop(c.src, m, k); push(c.src, b - a))
       0x1a => #= MUL =# (a = pop(c.src, m, k); b = pop(c.src, m, k); push(c.src, b * a))
       0x1b => #= DIV =# begin
-        a = pop(c.src, m, k); b = pop(c.src, m, k)
-        a == 0 && (c.src.error = 3; a = 1)
-        push(c.src, b / a)
-      end
+                          a = pop(c.src, m, k); b = pop(c.src, m, k)
+                          a == 0 && (c.src.error = 3; a = 1)
+                          push(c.src, b / a)
+                        end
       0x1c => #= AND =# (a = pop(c.src, m, k); b = pop(c.src, m, k); push(c.src, b & a))
       0x1d => #= ORA =# (a = pop(c.src, m, k); b = pop(c.src, m, k); push(c.src, b | a))
       0x1e => #= EOR =# (a = pop(c.src, m, k); b = pop(c.src, m, k); push(c.src, b ^ a))
       0x1f => #= SFT =# (a = pop(c.src, m, k); b = pop(c.src, m, k); push(c.src, b >> (a & 0x0f) << ((a & 0xf0) >> 4)))
-    end
+    end 
+    #! format: on
 
     bool(c.wst.error) && return uxn_halt!(c, c.wst.error, "Working-stack", instr)
     bool(c.rst.error) && return uxn_halt!(c, c.rst.error, "Return-stack", instr)
@@ -221,7 +223,7 @@ uxn_eval(c::CPU, vec::UInt16)::Int = begin
   end
 end
 
-reset!(s::Stack) ::Stack  = (s.ptr = s.kptr = s.error = 0x0; fill!(s.dat, 0x0); s)
+reset!(s::Stack)::Stack = (s.ptr = s.kptr = s.error = 0x0; fill!(s.dat, 0x0); s)
 reset!(m::Memory)::Memory = (m.ptr = 0x0; fill!(m.dat, 0x0); m)
 reset!(d::Device)::Device = (vec = 0x0; fill!(d.dat, 0x0); d)
 reset!(c::CPU)::CPU = (reset!.([c.wst, c.rst, c.src, c.dst, c.ram, c.dev...]); c)

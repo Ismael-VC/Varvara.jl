@@ -7,11 +7,12 @@
         {
             "type": "julia",
             "request": "launch",
-            "name": "Run active Julia file",
-            "program": "${file}",
+            "name": "Run Varvara",
+            "program": "${workspaceFolder}/src/Varvara.jl",
             "stopOnEntry": false,
             "cwd": "${workspaceFolder}/src",
             "juliaEnv": "${command:activeJuliaEnvironment}"
+            "args": ["hello.rom"]
         }
     ]
 }

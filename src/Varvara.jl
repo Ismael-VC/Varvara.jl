@@ -45,11 +45,12 @@ include("vvdocs.jl")
 end  # module
 
 
+
 using .Varvara
 
+
 function main()
-  push!(ARGS, "hello.rom")
-  @show c = CPU()
+  c = CPU()
   uxn_boot(c)
 end
 
