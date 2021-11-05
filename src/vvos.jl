@@ -19,8 +19,8 @@ import Base: show
 
 using  Match: @match
 
-using ..UxnUtils: bool
-using ..Uxn: CPU, Memory, Stack, Device, PAGE_PROGRAM, peek16, poke16, uxn_eval
+using ..VarvaraUtils: bool
+using ..Uxn: CPU, Memory, Stack, Device, PAGE_PROGRAM, peek, poke, uxn_eval
 
 export load, system_talk, console_talk, file_talk, datetime_talk, inspect,
  uxn_boot, run!, FILDES, UXN_EXCEPTIONS, UXN_ERRORS, console_input,
@@ -58,7 +58,7 @@ function run!(c::CPU)::Nothing
     dev_system_data = c.dev[0].dat
     dev_console_data = c.dev[1].dat
     while !bool(dev_system_data[0xf]) && read(dev_console_data[0x2]) > 0
-      vec = peek16(dev_console_data, 0)
+      vec = peek(dev_console_data, 0)
       !bool(vec) && (vec = c.ram.ptr)  # continue after last BRK
       uxn_eval(c, vec)
     end
@@ -135,7 +135,7 @@ end
 
 #= Devices =#
 function system_talk(d::Device, b0::UInt8, w::UInt8)::Int
-  if w  #= read =#
+  if bool(w)  #= read =#
     @match b0 begin
       0x2 => (d.dat[2] = d.c.wst.ptr)
       0x3 => (d.dat[3] = d.c.rst.ptr)
@@ -157,7 +157,7 @@ function system_talk(d::Device, b0::UInt8, w::UInt8)::Int
 end
 
 function console_talk(d::Device, b0::UInt8, w::UInt8)::Int
-  b0 == 0x1 && (d.vector = peek16(d.dat, 0x0))
+  b0 == 0x1 && (d.vector = peek(d.dat, 0x0))
   (bool(w) && b0 > 0x7) && write(FILDES[b0 - 0x7], Char(d.dat[b0]))
 
   return 1
@@ -167,11 +167,11 @@ function file_talk(d::Device, b0::UInt8, w::UInt8)::Int
   read = b0 == 0xd
 
   if w && (read || b0 == 0xf)
-    name::Char = Char(d.mem[peek16(d.dat, 0x8)])
+    name::Char = Char(d.mem[peek(d.dat, 0x8)])
     result::UInt16 = 0
-    length::UInt16 = peek16(d.dat, 0xa)
-    offset::Int32 = (Int32(peek16(d.dat, 0x4) << 16)) + peek16(d.dat, 0x6)
-    addr::UInt16 = peek16(d.dat, b0 - 1)
+    length::UInt16 = peek(d.dat, 0xa)
+    offset::Int32 = (Int32(peek(d.dat, 0x4) << 16)) + peek(d.dat, 0x6)
+    addr::UInt16 = peek(d.dat, b0 - 1)
 
     open(name, read ? "r" : (offset ? "a" : "w")) do f::IOStream
       fseek(f, offset)

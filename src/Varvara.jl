@@ -1,3 +1,5 @@
+#!/usr/bin/env julia
+
 #=
   Copyright (c) 2021
   https://github.com/Ismael-VC/Varvara.jl/blob/main/CONTRIBUTORS.md
@@ -27,7 +29,7 @@ include("uxnemu.jl")
 include("uxnasm.jl")
 include("vvdocs.jl")
 
-@reexport using .UxnUtils
+@reexport using .VarvaraUtils
 @reexport using .Uxn
 @reexport using .VarvaraOS
 @reexport using .UxnCLI
@@ -41,3 +43,14 @@ include("vvdocs.jl")
 @reexport using .VarvaraDocs
 
 end  # module
+
+
+using .Varvara
+
+function main()
+  push!(ARGS, "hello.rom")
+  @show c = CPU()
+  uxn_boot(c)
+end
+
+main()

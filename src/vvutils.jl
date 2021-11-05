@@ -10,13 +10,13 @@
   WITH REGARD TO THIS SOFTWARE.
 =#
 
-module UxnUtils
+module VarvaraUtils
 
-export low_byte, high_byte, concat_bytes, bool
+export low, high, concat, bool
 
-low_byte(x::UInt16)::UInt8 = x & 0xff
-high_byte(x::UInt16)::UInt8 = x >> 0x8
-concat_bytes(a::UInt8, b::UInt8)::UInt16 = UInt16(b) << 8
+low(x::UInt16)::UInt8 = x & 0xff
+high(x::UInt16)::UInt8 = x >> 0x8
+concat(low::UInt8, high::UInt8)::UInt16 = (UInt16(high) << 8) + low
 bool(x::Number)::Bool = !iszero(x)
 
 for T in (:AbstractArray, :AbstractString)
