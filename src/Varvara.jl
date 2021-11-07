@@ -10,37 +10,44 @@
 
   THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
   WITH REGARD TO THIS SOFTWARE.
-=#
+  =#
 
 module Varvara
 
 using Reexport: @reexport
 
-include("vvutils.jl")
-include("uxn.jl")
-include("vvos.jl")
-include("uxncli.jl")
-include("uxndbg.jl")
-include("uxngdbg.jl")
-include("uxnrepl.jl")
-include("devices/apu.jl")
-include("devices/ppu.jl")
-include("uxnemu.jl")
-include("uxnasm.jl")
-include("vvdocs.jl")
+#! format: off
 
-@reexport using .VarvaraUtils
-@reexport using .Uxn
-@reexport using .VarvaraOS
-@reexport using .UxnCLI
-@reexport using .UxnDBG
-@reexport using .UxnDBGG
-@reexport using .UxnREPL
-@reexport using .APU
-@reexport using .PPU
-@reexport using .UxnEMU
-@reexport using .UxnASM
-@reexport using .VarvaraDocs
+#= Utils =#
+include("vvutils.jl");     @reexport using .VarvaraUtils
+  
+#= Uxn =#
+include("uxn.jl");         @reexport using .Uxn
+include("uxntal.jl");      @reexport using .UxntalLang
+include("uxnasm.jl");      @reexport using .UxnASM
+
+#= Varvara =#
+include("vvos.jl");        @reexport using .VarvaraOS
+include("vvbios.jl");      @reexport using .VarvaraBIOS
+
+#= CLI =#
+include("uxncli.jl");      @reexport using .UxnCLI
+include("uxnrepl.jl");     @reexport using .UxnREPL
+
+#= GUI =#
+include("devices/apu.jl"); @reexport using .APU
+include("devices/ppu.jl"); @reexport using .PPU
+include("uxnemu.jl");      @reexport using .UxnEMU
+
+#= Debugger =#
+include("uxndbg.jl");      @reexport using .UxnDBG
+include("uxngdbg.jl");     @reexport using .UxnDBGG
+
+#= Documentation =#
+include("vvdocs.jl");      @reexport using .VarvaraDocs
+
+#! format: on
+
 
 end  # module
 

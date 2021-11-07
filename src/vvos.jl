@@ -92,8 +92,8 @@ function load(c::CPU, filepath::AbstractString)::Int
   begin
     rom = read(filepath)
     used = PAGE_PROGRAM + length(rom) - 1
-    free = 65279  # typemax(UInt16) - PAGE_PROGRAM
-    @assert free - used > 0
+    free = 65280  # 0x10000 - PAGE_PROGRAM
+    @assert free - used > 0x10000 - PAGE_ZERO
     c.ram.dat[PAGE_PROGRAM:PAGE_PROGRAM+length(rom)-1] = rom
     @info "Loaded $filepath"
 

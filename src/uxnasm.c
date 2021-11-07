@@ -1,38 +1,17 @@
-#=
-  Copyright (c) 2021
-  https://github.com/Ismael-VC/Varvara.jl/blob/main/CONTRIBUTORS.md
+#define TRIM 0x0100
+#define LENGTH 0x10000
 
-  Permission to use, copy, modify, and distribute this software for any
-  purpose with or without fee is hereby granted, provided that the above
-  copyright notice and this permission notice appear in all copies.
+#define LABELS 512
+#define MACROS 256
 
-  THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
-  WITH REGARD TO THIS SOFTWARE.
-=#
+typedef unsigned char Uint8;
+typedef signed char Sint8;
+typedef unsigned short Uint16;
 
-module UxnASM
-
-
-using OffsetArrays: OffsetMatrix
-using ..Uxn: ByteVector
-
-
-const TRIM = 0x0100
-const LENGTH = 0x10000
-const LABELS = 512
-const MACROS = 256
-const ByteMatrix{UInt8} = OffsetMatrix{UInt8,Matrix{UInt8}}
-
-
-ByteMatrix(dim₁::UInt8, dim₂::UInt8)::ByteMatrix{UInt8} = OffsetMatrix(zeros(UInt8, dim₁, dim₂), 0:dim₁-1, 0:dim₂-1)
-
-
-struct Macro
-	name::String  # ByteVector 
-  items::ByteMatrix
-	len::UInt8
-end
-
+typedef struct {
+	char name[64], items[64][64];
+	Uint8 len;
+} Macro;
 
 typedef struct {
 	char name[64];
@@ -57,7 +36,6 @@ static char ops[][4] = {
 	"LDZ", "STZ", "LDR", "STR", "LDA", "STA", "DEI", "DEO",
 	"ADD", "SUB", "MUL", "DIV", "AND", "ORA", "EOR", "SFT"
 };
-
 
 static int   cpos(char *s, char a){ int i = 0; char c; while((c = s[i++])) if(c == a) return i; return -1; }
 static int   scmp(char *a, char *b, int len) { int i = 0; while(a[i] == b[i]) if(!a[i] || ++i >= len) return 1; return 0; } /* string compare */
@@ -434,6 +412,3 @@ main(int argc, char *argv[])
 	cleanup(argv[2]);
 	return 0;
 }
-=#
-
-end  # module

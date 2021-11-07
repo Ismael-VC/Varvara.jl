@@ -38,10 +38,9 @@ const MODE_RETURN = 0x40
 const MODE_KEEP = 0x80
 const Void = Nothing
 const ByteVector{UInt8} = OffsetVector{UInt8,Vector{UInt8}}
-const UInt8_16 = Union{UInt8,UInt16}
 
-ByteVector{T}(len::UInt8_16) where {T} = OffsetVector(Vector{T}(undef, len), 0:len-1)
-ByteVector(len::UInt8_16) = OffsetVector(zeros(UInt8, len), 0:len-1)
+(ByteVector{T}(len::Integer)::ByteVector{T}) where {T} = OffsetVector(Vector{T}(undef, len), 0:len-1)
+ByteVector(len::Integer)::ByteVector{UInt8} = OffsetVector(zeros(UInt8, len), 0:len-1)
 
 
 mutable struct Stack
@@ -78,8 +77,8 @@ mutable struct CPU <: AbstractCPU
 end
 
 
-Stack()::Stack = Stack(0, 0, 0, ByteVector(0xff))
-Memory()::Memory = Memory(0, ByteVector(0xffff))
+Stack()::Stack = Stack(0, 0, 0, ByteVector(0x100))
+Memory()::Memory = Memory(0, ByteVector(0x10000))
 CPU()::CPU = CPU(uuid4(), Stack(), Stack(), Stack(), Stack(), Memory(), ByteVector{Device}(0x10))
 
 function Device(talkfn::F, c::C, id::UInt8)::Device where {C<:AbstractCPU,F<:Function}
@@ -87,7 +86,7 @@ function Device(talkfn::F, c::C, id::UInt8)::Device where {C<:AbstractCPU,F<:Fun
 end
 
 function Device(c::C, id::UInt8, talkfn::F)::Device where {C<:AbstractCPU,F<:Function}
-  d = Device(c, id, 0x000, talkfn, c.ram.dat, ByteVector(0x10))
+  d = Device(c, id, 0x0000, talkfn, c.ram.dat, ByteVector(0x10))
   c.dev[id] = d
   return d
 end
@@ -156,6 +155,7 @@ function uxn_eval(c::CPU, vec::UInt16, uxn_halt!::Function)::Int
     m = bool(instr & MODE_SHORT) ? UInt16 : UInt8
 
     #! format: off
+
     @match (instr & 0x1f) begin
       #= Stack =#
       0x00 => #= LIT =# pull(c, m)
@@ -181,7 +181,7 @@ function uxn_eval(c::CPU, vec::UInt16, uxn_halt!::Function)::Int
       0x0f => #= STH =# (a = pop(c.src, k, m); push(c.dst, a))
 
       #= Memory =#
-      0x10 => #= LDZ =# (a = pop(c.src, k, UInt8); push(c.src, peek(c.ram, a, m)))
+      0x10 => #= LDZ =# (a = pop(c.src, k, UInt8); push(c.src, peek(c.ram, a, UInt8)))
       0x11 => #= STZ =# (a = pop(c.src, k, UInt8); b = pop(c.src, k, m); poke(c.ram, a, b))
       0x12 => #= LDR =# (a = pop(c.src, k, UInt8); push(c.src, peek(c.ram, c.ram.ptr + Int8(a), m)))
       0x13 => #= STR =# (a = pop(c.src, k, UInt8); b = pop(c.src, k, m); poke(c.ram, c.ram.ptr + Int8(a), b))
@@ -211,6 +211,7 @@ function uxn_eval(c::CPU, vec::UInt16, uxn_halt!::Function)::Int
                           push(c.src, b >> (a & 0x0f) << ((a & 0xf0) >> 4))
                         end
     end 
+    
     #! format: on
 
     bool(c.wst.error) && return uxn_halt!(c, c.wst.error, "Working-stack", instr)
@@ -223,7 +224,6 @@ end
 uxn_eval(uxn_halt!::Function, c::CPU, vec::UInt16)::Int = uxn_eval(c, vec, uxn_halt!)
 uxn_eval(c::CPU, vec::UInt16)::Int = begin
   uxn_eval(c, vec) do c, error, message, instr
-
     @error "number: $error; message: $message; instruction: $(@sprintf("0x%04x", instr))"
   end
 end
