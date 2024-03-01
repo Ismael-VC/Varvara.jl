@@ -24,7 +24,7 @@ include("vvutils.jl");     @reexport using .VarvaraUtils
 #= Uxn =#
 include("uxn.jl");         @reexport using .Uxn
 include("uxntal.jl");      @reexport using .UxntalLang
-include("uxnasm.jl");      @reexport using .UxnASM
+# include("uxnasm.jl");      @reexport using .UxnASM
 
 #= Varvara =#
 include("vvos.jl");        @reexport using .VarvaraOS
@@ -32,19 +32,19 @@ include("vvbios.jl");      @reexport using .VarvaraBIOS
 
 #= CLI =#
 include("uxncli.jl");      @reexport using .UxnCLI
-include("uxnrepl.jl");     @reexport using .UxnREPL
+# include("uxnrepl.jl");     @reexport using .UxnREPL
 
 #= GUI =#
-include("devices/apu.jl"); @reexport using .APU
-include("devices/ppu.jl"); @reexport using .PPU
-include("uxnemu.jl");      @reexport using .UxnEMU
+# include("devices/apu.jl"); @reexport using .APU
+# include("devices/ppu.jl"); @reexport using .PPU
+# include("uxnemu.jl");      @reexport using .UxnEMU
 
 #= Debugger =#
-include("uxndbg.jl");      @reexport using .UxnDBG
-include("uxngdbg.jl");     @reexport using .UxnDBGG
+# include("uxndbg.jl");      @reexport using .UxnDBG
+# include("uxngdbg.jl");     @reexport using .UxnDBGG
 
 #= Documentation =#
-include("vvdocs.jl");      @reexport using .VarvaraDocs
+# include("vvdocs.jl");      @reexport using .VarvaraDocs
 
 #! format: on
 
