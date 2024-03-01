@@ -53,12 +53,13 @@ end  # module
 
 
 
-using .Varvara
+# using Varvara
 
-
+#=
 function main()
   c = CPU()
   uxn_boot(c)
 end
 
-#main()
+main()
+=#
